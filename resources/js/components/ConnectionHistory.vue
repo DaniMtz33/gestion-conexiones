@@ -31,6 +31,9 @@
 </template>
 
 <script>
+// 1. IMPORTAMOS EL SERVICIO
+import apiService from '../apiService';
+
 export default {
   name: 'ConnectionHistory',
   data() {
@@ -42,17 +45,14 @@ export default {
     this.fetchHistory();
   },
   methods: {
-    fetchHistory() {
-      // --- SIMULACIÓN DE API ---
-      const mockHistory = [
-        { id: 1, user: 'user_app_01', ip: '192.168.1.10', timestamp: '2025-09-04 14:30:15', status: 'Exitoso' },
-        { id: 2, user: 'root', ip: '201.150.3.45', timestamp: '2025-09-04 14:25:10', status: 'Fallido' },
-        { id: 3, user: 'user_db_03', ip: '10.0.0.5', timestamp: '2025-09-04 14:22:05', status: 'Exitoso' },
-        { id: 4, user: 'user_batch', ip: '192.168.1.15', timestamp: '2025-09-04 14:15:45', status: 'Exitoso' },
-        { id: 5, user: 'api_connect', ip: '192.168.1.20', timestamp: '2025-09-04 14:10:00', status: 'Exitoso' },
-      ];
-      // --- FIN DE LA SIMULACIÓN ---
-      this.connections = mockHistory;
+    // 2. MODIFICAMOS EL MÉTODO PARA USAR EL SERVICIO
+    async fetchHistory() {
+      try {
+        const response = await apiService.getData('GET_HISTORY');
+        this.connections = response.data;
+      } catch (error) {
+        console.error("Hubo un error al obtener el historial:", error);
+      }
     }
   }
 };

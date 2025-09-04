@@ -1,88 +1,37 @@
 <template>
-  <div class="dashboard-container">
-    <h1>Panel de Control de Conexiones</h1>
-
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <h2>Conexiones Activas</h2>
-        <p>{{ kpis.activeConnections }}</p>
-      </div>
-      <div class="kpi-card">
-        <h2>Usuarios Únicos</h2>
-        <p>{{ kpis.uniqueUsers }}</p>
-      </div>
-      <div class="kpi-card">
-        <h2>Conexiones Fallidas</h2>
-        <p>{{ kpis.failedConnections }}</p>
-      </div>
-    </div>
-
-    <div class="activity-table">
-      <h2>Actividad Reciente</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>IP de Origen</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="activity in recentActivity" :key="activity.id">
-            <td>{{ activity.user }}</td>
-            <td>{{ activity.ip }}</td>
-            <td>{{ activity.status }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <div class="dashboard-container"><h1>Panel de Control de Conexiones</h1><div class="kpi-grid"><div class="kpi-card"><h2>Conexiones Activas</h2><p>{{ kpis.activeConnections }}</p></div><div class="kpi-card"><h2>Usuarios Únicos</h2><p>{{ kpis.uniqueUsers }}</p></div><div class="kpi-card"><h2>Conexiones Fallidas</h2><p>{{ kpis.failedConnections }}</p></div></div><div class="activity-table"><h2>Actividad Reciente</h2><table><thead><tr><th>Usuario</th><th>IP de Origen</th><th>Estado</th></tr></thead><tbody><tr v-for="activity in recentActivity" :key="activity.id"><td>{{ activity.user }}</td><td>{{ activity.ip }}</td><td>{{ activity.status }}</td></tr></tbody></table></div></div>
 </template>
 
 <script>
+// 1. IMPORTAMOS NUESTRO NUEVO SERVICIO DE API
+import apiService from '../apiService';
+
 export default {
   name: 'Dashboard',
-  // 1. 'data' es donde vive el estado (la información) de nuestro componente.
   data() {
     return {
-      kpis: {
-        activeConnections: 0,
-        uniqueUsers: 0,
-        failedConnections: 0
-      },
+      kpis: {},
       recentActivity: []
     };
   },
-  // 2. 'mounted' es un método que se ejecuta automáticamente cuando el componente
-  //    se ha cargado en la página. Es el lugar perfecto para pedir datos.
   mounted() {
-    console.log("El componente Dashboard se ha montado. Cargando datos simulados...");
+    console.log("El componente Dashboard se ha montado. Pidiendo datos al apiService...");
     this.fetchDashboardData();
   },
   methods: {
-    // 3. Creamos un método para simular la llamada a la API.
-    fetchDashboardData() {
-      // --- SIMULACIÓN DE API ---
-      // En un futuro, aquí iría la llamada real a la API con 'axios' o 'fetch'.
-      // Por ahora, creamos los datos directamente.
-      const mockApiData = {
-        kpis: {
-          activeConnections: 12,
-          uniqueUsers: 5,
-          failedConnections: 2
-        },
-        recentActivity: [
-          { id: 1, user: 'user_app_01', ip: '192.168.1.10', status: 'Conectado' },
-          { id: 2, user: 'user_db_03', ip: '10.0.0.5', status: 'Conectado' },
-          { id: 3, user: 'user_batch', ip: '192.168.1.15', status: 'Desconectado' },
-          { id: 4, user: 'admin_user', ip: '192.168.1.20', status: 'Conectado' },
-        ]
-      };
-      // --- FIN DE LA SIMULACIÓN ---
+    // 2. AHORA EL MÉTODO USA EL SERVICIO
+    async fetchDashboardData() {
+      try {
+        // Hacemos la llamada a través del servicio
+        const response = await apiService.getData('GET_DASHBOARD');
 
-      // Actualizamos el 'data' del componente con los datos recibidos.
-      this.kpis = mockApiData.kpis;
-      this.recentActivity = mockApiData.recentActivity;
+        // Actualizamos el 'data' del componente con los datos recibidos del servicio
+        this.kpis = response.data.kpis;
+        this.recentActivity = response.data.recentActivity;
+      } catch (error) {
+        console.error("Hubo un error al obtener los datos del dashboard:", error);
+        // Aquí podríamos mostrar un mensaje de error al usuario
+      }
     }
   }
 };

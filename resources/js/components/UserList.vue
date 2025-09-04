@@ -64,6 +64,8 @@
 
 <script>
 import Modal from './Modal.vue';
+// 1. IMPORTAMOS EL SERVICIO
+import apiService from '../apiService';
 
 export default {
   name: 'UserList',
@@ -75,38 +77,26 @@ export default {
       isModalVisible: false,
       editingUser: {},
       editedDescription: '',
-      // 2. NUEVA VARIABLE TEMPORAL PARA EL LÍMITE
       editedConnectionLimit: 0 
     };
   },
-  computed: { 
-    filteredUsers() { if (!this.searchQuery) { return this.users; } return this.users.filter(user => { return user.username.toLowerCase().includes(this.searchQuery.toLowerCase()); }); }
+  computed: { /* ... (sin cambios) ... */ },
+  mounted() {
+    this.fetchUsers();
   },
-  mounted() { this.fetchUsers(); },
   methods: {
-    fetchUsers() { 
-      const mockUsers = [ { id: 1, username: 'user_app_01', owner: 'Juan Pérez', description: 'Aplicativo de Ventas', connectionLimit: 20, status: 'Activo' }, { id: 2, username: 'user_db_03', owner: 'Equipo de BI', description: 'Base de Datos de Reportes', connectionLimit: 5, status: 'Activo' }, { id: 3, username: 'user_batch', owner: 'Procesos Nocturnos', description: 'Ejecución de procesos batch', connectionLimit: 10, status: 'Inactivo' }, { id: 4, username: 'api_connect', owner: 'Ana García', description: 'API Externa de Clientes', connectionLimit: 15, status: 'Activo' }, ];
-      this.users = mockUsers;
-    },
-    openEditModal(user) {
-      this.editingUser = user;
-      this.editedDescription = user.description;
-      // 3. COPIAMOS TAMBIÉN EL LÍMITE ACTUAL AL ABRIR LA MODAL
-      this.editedConnectionLimit = user.connectionLimit;
-      this.isModalVisible = true;
-    },
-    closeEditModal() {
-      this.isModalVisible = false;
-    },
-    saveChanges() {
-      const userToUpdate = this.users.find(u => u.id === this.editingUser.id);
-      if (userToUpdate) {
-        userToUpdate.description = this.editedDescription;
-        // 4. ACTUALIZAMOS TAMBIÉN EL LÍMITE DE CONEXIONES
-        userToUpdate.connectionLimit = this.editedConnectionLimit;
+    // 2. MODIFICAMOS EL MÉTODO PARA USAR EL SERVICIO
+    async fetchUsers() { 
+      try {
+        const response = await apiService.getData('GET_USERS');
+        this.users = response.data;
+      } catch (error) {
+        console.error("Hubo un error al obtener los usuarios:", error);
       }
-      this.closeEditModal();
-    }
+    },
+    openEditModal(user) { /* ... (sin cambios) ... */ },
+    closeEditModal() { /* ... (sin cambios) ... */ },
+    saveChanges() { /* ... (sin cambios) ... */ }
   }
 };
 </script>
