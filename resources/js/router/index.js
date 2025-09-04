@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 // Importamos los componentes
 import Dashboard from '../components/Dashboard.vue';
 import UserList from '../components/UserList.vue';
-import ConnectionHistory from '../components/ConnectionHistory.vue'; // <-- 1. Importar el nuevo componente
+import ConnectionHistory from '../components/ConnectionHistory.vue';
 
 // Definimos las rutas
 const routes = [
@@ -17,7 +17,6 @@ const routes = [
     name: 'UserList',
     component: UserList
   },
-  // -- 2. AÑADIR LA NUEVA RUTA AQUÍ --
   {
     path: '/historial', 
     name: 'ConnectionHistory',

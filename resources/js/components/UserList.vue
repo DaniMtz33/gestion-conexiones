@@ -1,7 +1,15 @@
 <template>
   <div class="user-list-container">
     <h1>Gestión de Usuarios</h1>
-    <div class="search-bar"><input type="text" v-model="searchQuery" placeholder="Buscar por nombre de usuario..."></div>
+    <p>Lista de todos los usuarios con conexiones definidas en el servidor.</p>
+    
+    <div class="search-bar">
+      <input 
+        type="text" 
+        v-model="searchQuery" 
+        placeholder="Buscar por nombre de usuario..."
+      >
+    </div>
 
     <div class="user-table">
       <table>
@@ -39,21 +47,20 @@
     <template v-slot:header>
       <h3>Editando Usuario: {{ editingUser.username }}</h3>
     </template>
-
+    
     <template v-slot:body>
       <form @submit.prevent="saveChanges">
         <div class="form-group">
           <label for="description">Descripción del Usuario</label>
           <textarea id="description" v-model="editedDescription" rows="4"></textarea>
         </div>
-
         <div class="form-group">
           <label for="connectionLimit">Límite de Conexiones</label>
           <input type="number" id="connectionLimit" v-model.number="editedConnectionLimit">
         </div>
       </form>
     </template>
-
+    
     <template v-slot:footer>
       <button @click="closeEditModal" class="button-secondary">Cancelar</button>
       <button @click="saveChanges" class="button-primary">Guardar Cambios</button>
@@ -64,12 +71,13 @@
 
 <script>
 import Modal from './Modal.vue';
-// 1. IMPORTAMOS EL SERVICIO
-import apiService from '../apiService';
+import apiService from '../apiService.js';
 
 export default {
   name: 'UserList',
-  components: { Modal },
+  components: { 
+    Modal 
+  },
   data() {
     return {
       searchQuery: '', 
@@ -80,12 +88,20 @@ export default {
       editedConnectionLimit: 0 
     };
   },
-  computed: { /* ... (sin cambios) ... */ },
+  computed: {
+    filteredUsers() {
+      if (!this.searchQuery) {
+        return this.users;
+      }
+      return this.users.filter(user => {
+        return user.username.toLowerCase().includes(this.searchQuery.toLowerCase());
+      });
+    }
+  },
   mounted() {
     this.fetchUsers();
   },
   methods: {
-    // 2. MODIFICAMOS EL MÉTODO PARA USAR EL SERVICIO
     async fetchUsers() { 
       try {
         const response = await apiService.getData('GET_USERS');
@@ -94,13 +110,26 @@ export default {
         console.error("Hubo un error al obtener los usuarios:", error);
       }
     },
-    openEditModal(user) { /* ... (sin cambios) ... */ },
-    closeEditModal() { /* ... (sin cambios) ... */ },
-    saveChanges() { /* ... (sin cambios) ... */ }
+    openEditModal(user) {
+      this.editingUser = user;
+      this.editedDescription = user.description;
+      this.editedConnectionLimit = user.connectionLimit;
+      this.isModalVisible = true;
+    },
+    closeEditModal() {
+      this.isModalVisible = false;
+    },
+    saveChanges() {
+      const userToUpdate = this.users.find(u => u.id === this.editingUser.id);
+      if (userToUpdate) {
+        userToUpdate.description = this.editedDescription;
+        userToUpdate.connectionLimit = this.editedConnectionLimit;
+      }
+      this.closeEditModal();
+    }
   }
 };
 </script>
-
 <style scoped>
 .user-list-container {
   font-family: sans-serif;

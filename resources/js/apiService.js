@@ -26,16 +26,19 @@ export default {
     }
 
     // AÑADIMOS EL CASO PARA OBTENER USUARIOS
-    if (p_option === 'GET_USERS') {
-      return Promise.resolve({
-        data: [
-          { id: 1, username: 'user_app_01', owner: 'Juan Pérez', description: 'Aplicativo de Ventas', connectionLimit: 20, status: 'Activo' },
-          { id: 2, username: 'user_db_03', owner: 'Equipo de BI', description: 'Base de Datos de Reportes', connectionLimit: 5, status: 'Activo' },
-          { id: 3, username: 'user_batch', owner: 'Procesos Nocturnos', description: 'Ejecución de procesos batch', connectionLimit: 10, status: 'Inactivo' },
-          { id: 4, username: 'api_connect', owner: 'Ana García', description: 'API Externa de Clientes', connectionLimit: 15, status: 'Activo' },
-        ]
-      });
-    }
+if (p_option === 'GET_USERS') {
+  const mockUsers = [ // <-- Guardamos los datos en una variable temporal
+    { id: 1, username: 'user_app_01', owner: 'Juan Pérez', description: 'Aplicativo de Ventas', connectionLimit: 20, status: 'Activo' },
+    { id: 2, username: 'user_db_03', owner: 'Equipo de BI', description: 'Base de Datos de Reportes', connectionLimit: 5, status: 'Activo' },
+    { id: 3, username: 'user_batch', owner: 'Procesos Nocturnos', description: 'Ejecución de procesos batch', connectionLimit: 10, status: 'Inactivo' },
+    { id: 4, username: 'api_connect', owner: 'Ana García', description: 'API Externa de Clientes', connectionLimit: 15, status: 'Activo' },
+  ];
+
+  // AÑADE ESTA LÍNEA
+  console.log("apiService está a punto de devolver estos usuarios:", mockUsers);
+
+  return Promise.resolve({ data: mockUsers });
+}
 
     // AÑADIMOS EL CASO PARA OBTENER EL HISTORIAL
     if (p_option === 'GET_HISTORY') {
