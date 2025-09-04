@@ -46,6 +46,11 @@
           <label for="description">Descripción del Usuario</label>
           <textarea id="description" v-model="editedDescription" rows="4"></textarea>
         </div>
+
+        <div class="form-group">
+          <label for="connectionLimit">Límite de Conexiones</label>
+          <input type="number" id="connectionLimit" v-model.number="editedConnectionLimit">
+        </div>
       </form>
     </template>
 
@@ -69,37 +74,37 @@ export default {
       users: [],
       isModalVisible: false,
       editingUser: {},
-      // 3. VARIABLE TEMPORAL PARA LA EDICIÓN
-      editedDescription: '' 
+      editedDescription: '',
+      // 2. NUEVA VARIABLE TEMPORAL PARA EL LÍMITE
+      editedConnectionLimit: 0 
     };
   },
-  computed: { /* ... (sin cambios) ... */
+  computed: { 
     filteredUsers() { if (!this.searchQuery) { return this.users; } return this.users.filter(user => { return user.username.toLowerCase().includes(this.searchQuery.toLowerCase()); }); }
   },
   mounted() { this.fetchUsers(); },
   methods: {
-    fetchUsers() { /* ... (sin cambios) ... */
+    fetchUsers() { 
       const mockUsers = [ { id: 1, username: 'user_app_01', owner: 'Juan Pérez', description: 'Aplicativo de Ventas', connectionLimit: 20, status: 'Activo' }, { id: 2, username: 'user_db_03', owner: 'Equipo de BI', description: 'Base de Datos de Reportes', connectionLimit: 5, status: 'Activo' }, { id: 3, username: 'user_batch', owner: 'Procesos Nocturnos', description: 'Ejecución de procesos batch', connectionLimit: 10, status: 'Inactivo' }, { id: 4, username: 'api_connect', owner: 'Ana García', description: 'API Externa de Clientes', connectionLimit: 15, status: 'Activo' }, ];
       this.users = mockUsers;
     },
     openEditModal(user) {
       this.editingUser = user;
-      // 4. COPIAMOS LA DESCRIPCIÓN ACTUAL A LA VARIABLE TEMPORAL
-      this.editedDescription = user.description; 
+      this.editedDescription = user.description;
+      // 3. COPIAMOS TAMBIÉN EL LÍMITE ACTUAL AL ABRIR LA MODAL
+      this.editedConnectionLimit = user.connectionLimit;
       this.isModalVisible = true;
     },
     closeEditModal() {
       this.isModalVisible = false;
     },
-    // 5. NUEVO MÉTODO PARA GUARDAR LOS CAMBIOS
     saveChanges() {
-      // Buscamos al usuario original en nuestra lista por su ID
       const userToUpdate = this.users.find(u => u.id === this.editingUser.id);
       if (userToUpdate) {
-        // Actualizamos su descripción con el valor del formulario
         userToUpdate.description = this.editedDescription;
+        // 4. ACTUALIZAMOS TAMBIÉN EL LÍMITE DE CONEXIONES
+        userToUpdate.connectionLimit = this.editedConnectionLimit;
       }
-      // Cerramos la modal
       this.closeEditModal();
     }
   }
