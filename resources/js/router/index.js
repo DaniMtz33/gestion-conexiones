@@ -1,24 +1,30 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-// Importamos los componentes que actuarán como páginas
+// Importamos los componentes
 import Dashboard from '../components/Dashboard.vue';
 import UserList from '../components/UserList.vue';
+import ConnectionHistory from '../components/ConnectionHistory.vue'; // <-- 1. Importar el nuevo componente
 
-// Definimos las rutas de nuestra aplicación
+// Definimos las rutas
 const routes = [
   {
-    path: '/', // La ruta raíz
+    path: '/',
     name: 'Dashboard',
     component: Dashboard
   },
   {
-    path: '/usuarios', // La ruta para la lista de usuarios
+    path: '/usuarios',
     name: 'UserList',
     component: UserList
+  },
+  // -- 2. AÑADIR LA NUEVA RUTA AQUÍ --
+  {
+    path: '/historial', 
+    name: 'ConnectionHistory',
+    component: ConnectionHistory
   }
 ];
 
-// Creamos la instancia del router
 const router = createRouter({
   history: createWebHistory(),
   routes, 

@@ -11,6 +11,9 @@
         <li>
           <router-link to="/usuarios">Usuarios</router-link>
         </li>
+        <li>
+          <router-link to="/historial">Historial de Conexiones</router-link>
+        </li>
       </ul>
     </nav>
 
