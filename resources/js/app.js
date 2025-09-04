@@ -1,12 +1,12 @@
 import './bootstrap';
 import { createApp } from 'vue';
 
-// 1. Importar nuestro nuevo componente
-import Dashboard from './components/Dashboard.vue';
+// 1. Importamos nuestro nuevo layout principal
+import App from './layouts/App.vue'; 
+import router from './router'; 
 
-const app = createApp({});
+// 2. Le decimos a createApp que use App.vue como el componente raíz
+const app = createApp(App);
 
-// 2. Registrar el componente para poder usarlo en HTML
-app.component('dashboard', Dashboard);
-
+app.use(router);
 app.mount('#app');
