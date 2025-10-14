@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // **URL BASE DEFINITIVA Y CORREGIDA**
 // Confirma: http://192.168.1.77:7171/DEMORPC
-const REAL_API_BASE_URL = 'http://192.168.1.77:7171/DEMORPC'; 
+const REAL_API_BASE_URL = '/api/DEMORPC'; 
 
 const BASE_URL = REAL_API_BASE_URL;
 
