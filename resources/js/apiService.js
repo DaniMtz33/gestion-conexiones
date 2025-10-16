@@ -1,8 +1,10 @@
+// danimtz33/gestion-conexiones/gestion-conexiones-e3ac4ad0f9092d596fc6b606c7c8f30222771f08/resources/js/apiService.js
+
 import axios from 'axios';
 
 // **URL BASE DEFINITIVA Y CORREGIDA**
-// Confirma: http://192.168.1.77:7171/DEMORPC
-const REAL_API_BASE_URL = 'http://192.168.1.77:7171/DEMORPC'; 
+// Importante: Usar una ruta relativa para que el proxy de Vite la intercepte.
+const REAL_API_BASE_URL = '/api/DEMORPC'; 
 
 const BASE_URL = REAL_API_BASE_URL;
 
@@ -16,7 +18,7 @@ const apiClient = axios.create({
 /**
  * Mapea y transforma los datos del modelo User.rpc (API) al formato esperado por los componentes (FRONTEND).
  */
-function dataMapper(option, apiData) {
+function dataMapper(option, apiData, params = {}) { // <-- Acepta parámetros de filtro
     // La API devuelve un array, lo usamos.
     const users = Array.isArray(apiData) ? apiData : apiData.data || [];
 
@@ -58,13 +60,56 @@ function dataMapper(option, apiData) {
     }
 
     if (option === 'GET_HISTORY') {
-        return mappedUsers.slice(0, 3).map((u, index) => ({
-            id: index + 1,
-            user: u.username,
-            ip: u.ip_address,
-            timestamp: '2025-09-30 14:30:15',
-            status: index % 2 === 0 ? 'Exitoso' : 'Fallido'
-        }));
+        // --- INICIO DE LÓGICA DE HISTORIAL AMPLIADA Y SIMULACIÓN DE FILTRADO ---
+        
+        // 1. Generamos un historial simulado con los nuevos campos (Duración y Motivo)
+        let history = [];
+        mappedUsers.forEach(u => {
+            // Simulación de registros de historial para un usuario (Exitoso)
+            history.push({
+                id: history.length + 1,
+                user: u.username,
+                ip: u.ip_address,
+                timestamp: '2025-09-30 14:30:15',
+                status: 'Exitoso',
+                duration: '01:23:45', // Nuevo campo
+                disconnectionReason: 'Cierre de sesión manual' // Nuevo campo
+            });
+            // Simulación de un registro (Fallido)
+            history.push({
+                id: history.length + 1,
+                user: u.username,
+                ip: '10.0.0.' + (u.id * 2),
+                timestamp: '2025-09-29 09:10:00',
+                status: 'Fallido',
+                duration: '00:00:05', // Nuevo campo
+                disconnectionReason: 'Credenciales inválidas' // Nuevo campo
+            });
+            // Simulación de otro registro exitoso
+            history.push({
+                id: history.length + 1,
+                user: u.username,
+                ip: '10.0.0.' + (u.id * 2),
+                timestamp: '2025-09-29 10:00:00',
+                status: 'Exitoso',
+                duration: '00:15:30', // Nuevo campo
+                disconnectionReason: 'Conexión por inactividad' // Nuevo campo
+            });
+        });
+        
+        // 2. Simulación de Filtrado por texto (Usuario o IP)
+        const filterText = params.search ? params.search.toLowerCase() : '';
+
+        if (filterText) {
+            history = history.filter(item => 
+                item.user.toLowerCase().includes(filterText) || 
+                item.ip.includes(filterText)
+            );
+        }
+        
+        // 3. Devolvemos el historial filtrado
+        return history;
+        // --- FIN DE LÓGICA DE HISTORIAL AMPLIADA Y SIMULACIÓN DE FILTRADO ---
     }
     
     return mappedUsers;
@@ -78,7 +123,9 @@ export default {
     
     try {
         const response = await apiClient.get('/User.rpc', { params: p_parameters }); 
-        const mappedData = dataMapper(p_option, response.data);
+        
+        // Pasamos los parámetros de filtro a dataMapper para que pueda aplicarlos (en la simulación)
+        const mappedData = dataMapper(p_option, response.data, p_parameters);
         
         return { data: mappedData }; 
         

@@ -25,4 +25,16 @@ export default defineConfig({
             vue: 'vue/dist/vue.esm-bundler.js',
         },
     },
+    // --- NUEVA CONFIGURACIÓN DE PROXY ---
+    server: {
+        proxy: {
+            '/api/DEMORPC': {
+                target: 'http://192.168.1.77:7171', 
+                rewrite: (path) => path.replace(/^\/api/, ''), 
+                changeOrigin: true, 
+                secure: false, 
+            }
+        }
+    }
+    // --- FIN DE LA NUEVA CONFIGURACIÓN ---
 });
