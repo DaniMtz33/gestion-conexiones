@@ -11,7 +11,7 @@ Route::get('/', function () {
 
 // --- RUTA DE PROXY DEFINITIVA ---
 Route::any('/api/{any}', function ($any) {
-    $apiBaseUrl = 'http://192.168.1.77:7171';
+    $apiBaseUrl = 'http://192.168.1.79:7171';
     $request = request();
     $apiUrl = rtrim($apiBaseUrl, '/') . '/' . $any;
 
