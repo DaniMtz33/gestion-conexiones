@@ -11,13 +11,15 @@
         v-model="searchQuery" 
         placeholder="Buscar por Usuario o IP de Origen..."
         class="filter-input"
+        @keyup.enter="fetchHistory"
       />
       <label for="dateRange" class="date-label">Rango de Fechas:</label>
       <input 
         type="text" 
         v-model="dateRange" 
-        placeholder="dd/mm/aaaa - dd/mm/aaaa"
+        placeholder="Defecto: Mes Actual" 
         class="filter-input date-input"
+        @change="fetchHistory"
       />
       <button @click="fetchHistory" class="apply-filter-button">Aplicar Filtros</button>
     </div>
@@ -34,12 +36,15 @@
           </tr>
         </thead>
         <tbody>
+          <tr v-if="connections.length === 0">
+             <td colspan="6" style="text-align:center; padding: 20px;">No se encontraron registros</td>
+          </tr>
           <tr v-for="conn in connections" :key="conn.id">
             <td>{{ conn.user }}</td>
             <td>{{ conn.ip }}</td>
             <td>{{ conn.timestamp }}</td>
             <td>
-              <span :class="['status', conn.status === 'Exitoso' ? 'status-success' : 'status-failed']">
+              <span :class="getStatusClass(conn.status)">
                 {{ conn.status }}
               </span>
             </td>
@@ -53,7 +58,6 @@
 </template>
 
 <script>
-// 1. IMPORTAMOS EL SERVICIO
 import apiService from '../apiService';
 
 export default {
@@ -61,40 +65,49 @@ export default {
   data() {
     return {
       connections: [],
-      // Nuevos datos para el filtrado
       searchQuery: '',
       dateRange: ''
     };
   },
   mounted() {
-    // Carga inicial sin filtros
     this.fetchHistory();
   },
   methods: {
-    // 2. MODIFICAMOS EL MÉTODO PARA USAR LOS PARÁMETROS DE FILTRO
     async fetchHistory() {
       try {
         const params = {
-            // Pasamos los valores de los inputs como parámetros
             search: this.searchQuery,
             dateRange: this.dateRange
         };
-        // Enviamos los parámetros a getData para que la capa de servicio los use
         const response = await apiService.getData('GET_HISTORY', params);
         this.connections = response.data;
       } catch (error) {
         console.error("Hubo un error al obtener el historial:", error);
       }
+    },
+    // NUEVO MÉTODO AGREGADO
+    getStatusClass(status) {
+      if (!status) return 'status';
+      
+      // Convertimos a mayúsculas para comparar sin errores
+      const s = status.toString().toUpperCase();
+
+      // Si dice EXITOSO, CONECTADO o SI -> Verde
+      if (s === 'EXITOSO' || s === 'CONECTADO' || s === 'SI') {
+          return 'status status-success';
+      }
+      
+      // Cualquier otra cosa -> Rojo (o el color de failed)
+      return 'status status-failed';
     }
   }
 };
 </script>
 
 <style scoped>
-/* Puedes añadir estilos similares a UserList.vue o personalizarlos */
 .history-container {
   font-family: sans-serif;
-  max-width: 1200px; /* Aumentamos el tamaño para los filtros */
+  max-width: 1200px;
   margin: 40px auto;
   padding: 20px;
 }
@@ -137,7 +150,7 @@ export default {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  overflow-x: auto; /* Para tablas anchas */
+  overflow-x: auto;
 }
 table {
   width: 100%;
@@ -152,16 +165,20 @@ th {
   background-color: #f8f9fa;
   font-weight: 600;
 }
+/* Estilos base para el badge */
 .status {
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: bold;
+  display: inline-block; /* Para que se vea bien como badge */
 }
+/* Verde */
 .status-success {
   background-color: #e2f5ea;
   color: #34a853;
 }
+/* Rojo */
 .status-failed {
   background-color: #f8e1e1;
   color: #ea4335;
