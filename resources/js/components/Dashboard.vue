@@ -1,36 +1,145 @@
 <template>
-  <div class="dashboard-container"><h1>Panel de Control de Conexiones</h1><div class="kpi-grid"><div class="kpi-card"><h2>Conexiones Activas</h2><p>{{ kpis.activeConnections }}</p></div><div class="kpi-card"><h2>Usuarios Únicos</h2><p>{{ kpis.uniqueUsers }}</p></div><div class="kpi-card"><h2>Conexiones Fallidas</h2><p>{{ kpis.failedConnections }}</p></div></div><div class="activity-table"><h2>Actividad Reciente</h2><table><thead><tr><th>Usuario</th><th>IP de Origen</th><th>Estado</th></tr></thead><tbody><tr v-for="activity in recentActivity" :key="activity.id"><td>{{ activity.user }}</td><td>{{ activity.ip }}</td><td>{{ activity.status }}</td></tr></tbody></table></div></div>
+  <div class="dashboard-container">
+    <h1 class="mb-4 text-secondary">Dashboard General</h1>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card kpi-card border-primary mb-3">
+          <div class="card-body text-primary">
+            <h5 class="card-title text-uppercase font-weight-bold">Conexiones Activas</h5>
+            <p class="card-text display-4">{{ kpis.activeConnections }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card kpi-card border-success mb-3">
+          <div class="card-body text-success">
+            <h5 class="card-title text-uppercase font-weight-bold">Total Usuarios</h5>
+            <p class="card-text display-4">{{ kpis.totalUsers }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card kpi-card border-warning mb-3">
+          <div class="card-body text-warning">
+            <h5 class="card-title text-uppercase font-weight-bold">Alertas</h5>
+            <p class="card-text display-4">{{ kpis.alerts }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-8 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-header bg-white font-weight-bold">
+            <i class="bi bi-graph-up"></i> Tendencia de Conexiones (30 días)
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+                <canvas id="trendsChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <br>
+
+      <div class="col-md-4 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-header bg-white font-weight-bold">
+            <i class="bi bi-hdd-network"></i> Top 5 IPs de Origen
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+                <canvas id="ipsChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-// 1. IMPORTAMOS NUESTRO NUEVO SERVICIO DE API
 import apiService from '../apiService';
+import Chart from 'chart.js/auto'; 
 
 export default {
   name: 'Dashboard',
   data() {
     return {
-      kpis: {},
-      recentActivity: []
+      kpis: { activeConnections: 0, totalUsers: 0, alerts: 0 },
+      trendsChartInstance: null,
+      ipsChartInstance: null
     };
   },
-  mounted() {
-    console.log("El componente Dashboard se ha montado. Pidiendo datos al apiService...");
-    this.fetchDashboardData();
+  async mounted() {
+    await this.loadDashboardData();
   },
   methods: {
-    // 2. AHORA EL MÉTODO USA EL SERVICIO
-    async fetchDashboardData() {
+    async loadDashboardData() {
       try {
-        // Hacemos la llamada a través del servicio
         const response = await apiService.getData('GET_DASHBOARD');
-
-        // Actualizamos el 'data' del componente con los datos recibidos del servicio
-        this.kpis = response.data.kpis;
-        this.recentActivity = response.data.recentActivity;
+        const data = response.data;
+        
+        this.kpis = data.kpis;
+        // Esperamos un momento para asegurar que el DOM (los canvas) estén listos
+        this.$nextTick(() => {
+            this.renderCharts(data.charts);
+        });
+        
       } catch (error) {
-        console.error("Hubo un error al obtener los datos del dashboard:", error);
-        // Aquí podríamos mostrar un mensaje de error al usuario
+        console.error("Error cargando dashboard:", error);
+      }
+    },
+    renderCharts(charts) {
+      // 1. Gráfica de Tendencias
+      const ctx1 = document.getElementById('trendsChart');
+      if (ctx1) {
+          if (this.trendsChartInstance) this.trendsChartInstance.destroy();
+          
+          this.trendsChartInstance = new Chart(ctx1, {
+            type: 'line',
+            data: {
+              labels: charts.trends.labels,
+              datasets: [{
+                label: 'Conexiones Diarias',
+                data: charts.trends.data,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.3,
+                fill: true
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+      }
+
+      // 2. Gráfica de Top IPs
+      const ctx2 = document.getElementById('ipsChart');
+      if (ctx2) {
+          if (this.ipsChartInstance) this.ipsChartInstance.destroy();
+
+          this.ipsChartInstance = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+              labels: charts.topIps.labels,
+              datasets: [{
+                label: 'Intentos de Conexión',
+                data: charts.topIps.data,
+                backgroundColor: [
+                  '#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14'
+                ],
+                borderWidth: 1
+              }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                indexAxis: 'y' // Esto hace las barras horizontales
+            }
+          });
       }
     }
   }
@@ -38,52 +147,18 @@ export default {
 </script>
 
 <style scoped>
-/* Estos estilos se aplican solo a este componente */
 .dashboard-container {
-  font-family: sans-serif;
-  max-width: 900px;
-  margin: 40px auto;
-}
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 40px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
 }
 .kpi-card {
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border-width: 0 0 0 4px; /* Borde de color solo a la izquierda */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-.kpi-card h2 {
-  margin: 0 0 10px 0;
-  font-size: 16px;
-  color: #555;
-}
-.kpi-card p {
-  margin: 0;
-  font-size: 36px;
-  font-weight: bold;
-  color: #007bff;
-}
-.activity-table {
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  text-align: left;
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-th {
-  color: #333;
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
 }
 </style>

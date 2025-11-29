@@ -132,10 +132,112 @@ function dataMapper(option, apiData, params = {}) {
     return [];
 }
 
+function processDashboardData(users, history) {
+    // 1. KPIs Básicos
+    const totalUsers = users.length;
+    // Asumimos que si activo es 'SI', cuenta como conexión activa
+    const activeConnections = users.filter(u => u.status === 'Activo' || u.activo === 'SI').length;
+    
+    // 2. TENDENCIAS (Últimos 7 días)
+    const trendsMap = {};
+    const today = new Date();
+    
+    // Inicializamos los últimos 7 días en 0
+    const labels = [];
+    for(let i=29; i>=0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const dayStr = formatDate(d); // DD/MM/AAAA
+        trendsMap[dayStr] = 0;
+        labels.push(dayStr);
+    }
+
+    // Llenamos con datos del historial
+    if (Array.isArray(history)) {
+        history.forEach(h => {
+            // h.timestamp viene como "DD/MM/AAAA HH:mm:ss" o "DD/MM/AAAA"
+            let dateStr = "";
+            if (h.timestamp && h.timestamp !== 'N/A') {
+                dateStr = h.timestamp.split(' ')[0];
+            } else if (h['fecha.ini']) {
+                dateStr = h['fecha.ini'];
+            }
+
+            if (dateStr && trendsMap.hasOwnProperty(dateStr)) {
+                trendsMap[dateStr]++;
+            }
+        });
+    }
+
+    const trendValues = labels.map(label => trendsMap[label]);
+
+    // 3. TOP IPs DE ORIGEN
+    const ipMap = {};
+    if (Array.isArray(history)) {
+        history.forEach(h => {
+            const ip = h.ip || 'Desconocido';
+            if (ip !== 'N/A' && ip !== '' && ip !== 'Desconocido') {
+                ipMap[ip] = (ipMap[ip] || 0) + 1;
+            }
+        });
+    }
+
+    // Ordenar de mayor a menor y tomar el Top 5
+    const sortedIps = Object.entries(ipMap)
+        .sort((a, b) => b[1] - a[1]) 
+        .slice(0, 5);
+
+    return {
+        kpis: {
+            totalUsers,
+            activeConnections,
+            alerts: 0 // Dato simulado por ahora
+        },
+        charts: {
+            trends: {
+                labels: labels,
+                data: trendValues
+            },
+            topIps: {
+                labels: sortedIps.map(i => i[0]),
+                data: sortedIps.map(i => i[1])
+            }
+        }
+    };
+}
+
 export default {
   async getData(p_option, p_parameters = {}) {
     try {
         let response;
+
+        if (p_option === 'GET_DASHBOARD') {
+            console.log('[Dashboard] Solicitando datos combinados...');
+
+            // 1. Pedimos Usuarios (Para KPIs)
+            const usersResp = await apiClient.get('/Usuarios.registrados');
+            // Reusamos la lógica de mapeo existente para limpiar los usuarios
+            const usersClean = dataMapper('GET_USERS', usersResp.data);
+
+            // 2. Pedimos Historial (Para Gráficas) - Traemos mes actual
+            const todayStr = getToday();
+            const firstDayStr = getFirstDayOfMonth();
+            const payloadHistory = {
+                "usuario": "",
+                "fecha.ini": firstDayStr, 
+                "fecha.fin": todayStr,
+                "ip": "",
+                "estado": ""
+            };
+            const historyResp = await apiClient.post('/subroutine/OBTENER.CONEXIONES', payloadHistory);
+            // Reusamos lógica de mapeo existente para limpiar historial
+            const historyClean = dataMapper('GET_HISTORY', historyResp.data);
+
+            // 3. Procesamos todo junto
+            const dashboardData = processDashboardData(usersClean, historyClean);
+            
+            return { data: dashboardData };
+        }
 
         if (p_option === 'GET_USERS' || p_option === 'GET_DASHBOARD') {
             response = await apiClient.get('/Usuarios.registrados');
