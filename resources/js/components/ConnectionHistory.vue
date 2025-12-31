@@ -27,7 +27,12 @@
       <table>
         <thead>
           <tr>
-            <th>Usuario</th>
+            <th @click="sortUsers" style="cursor: pointer; user-select: none;">
+              Usuario
+              <span v-if="sortOrder === 'asc'" style="color: #34a853;">▲</span>
+              <span v-else-if="sortOrder === 'desc'" style="color: #ea4335;">▼</span>
+              <span v-else style="color: #ccc;">⇵</span>
+            </th>
             <th>IP de Origen</th>
             <th>Fecha y Hora</th>
             <th>Resultado</th>
@@ -66,7 +71,8 @@ export default {
     return {
       connections: [],
       searchQuery: '',
-      dateRange: ''
+      dateRange: '',
+      sortOrder: null // 'asc' o 'desc'
     };
   },
   mounted() {
@@ -84,6 +90,21 @@ export default {
       } catch (error) {
         console.error("Hubo un error al obtener el historial:", error);
       }
+    },
+
+    sortUsers() {
+      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+
+      this.connections.sort((a, b) => {
+        const userA = (a.user || '').toLowerCase();
+        const userB = (b.user || '').toLowerCase();
+        
+        if (this.sortOrder === 'asc') {
+          return userA.localeCompare(userB);
+        } else {
+          return userB.localeCompare(userA);
+        }
+      });
     },
     // NUEVO MÉTODO AGREGADO
     getStatusClass(status) {
