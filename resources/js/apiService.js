@@ -28,15 +28,35 @@ function formatDate(date) {
 }
 
 function dataMapper(option, apiData) {
+    // 1. Validación de entrada
+    if (!apiData) return [];
+
     if (typeof apiData === 'string') {
-        try { apiData = JSON.parse(apiData); } catch (e) { }
+        try { 
+            apiData = JSON.parse(apiData); 
+        } catch (e) { 
+            console.error("Error parseando JSON:", e);
+            return []; 
+        }
     }
 
-    // Mapeo de Usuarios
-    if (option === 'GET_USERS' || option === 'GET_DASHBOARD') {
-        const users = apiData['Usuarios.registrados'] || (Array.isArray(apiData) ? apiData : []);
+    // 2. Identificar el contenido del payload
+    // ¿Es un payload de usuarios? (Tiene la clave o es un array)
+    const hasUserKey = Object.prototype.hasOwnProperty.call(apiData, 'Usuarios.registrados');
+    const isUserArray = Array.isArray(apiData);
+    
+    // ¿Es un payload de historial? (Tiene la clave resultados)
+    const isHistoryPayload = apiData && typeof apiData.resultados === 'string';
+
+    // 3. PROCESAMIENTO DE USUARIOS
+    // Solo entramos aquí si el payload realmente contiene usuarios
+    if ((hasUserKey || isUserArray) && (option === 'GET_USERS' || option === 'GET_DASHBOARD')) {
+        const users = apiData['Usuarios.registrados'] || (isUserArray ? apiData : []);
         
-        const mappedUsers = users.map((user, index) => {
+        // Si no hay usuarios en un payload que debería tenerlos, devolvemos lo que hay para no romper la cadena
+        if (users.length === 0 && option === 'GET_USERS') return [];
+
+        return users.map((user, index) => {
             // Manejo de IP: Aplanamos el array [[ "ip" ]] que devuelve UniVerse
             let ip = 'N/A';
             if (Array.isArray(user.ip_autorizada)) {
@@ -49,41 +69,38 @@ function dataMapper(option, apiData) {
                 id: index + 1,
                 username: user._id || `user_${index}`,
                 name: user.nombre_usuario || user._id,
-                owner: user.propietario || 'N/A',            // Propietario
-                description: user.observaciones || '',       // Descripción (mapeado de observaciones)
+                owner: user.propietario || 'N/A',
+                description: user.observaciones || '',
                 status: user.activo === 'SI' ? 'Activo' : 'Inactivo',
                 api_id: user._id,
                 ip_address: ip,
                 u2version: user.u2version || null
             };
         });
-
-        if (option === 'GET_USERS') return mappedUsers;
-        // Para el Dashboard guardamos la lista mapeada internamente
-        apiData._mappedUsers = mappedUsers; 
     }
 
-    // Mapeo de Historial con nuevos separadores
-    if (option === 'GET_HISTORY' || option === 'GET_DASHBOARD') {
-        if (apiData && typeof apiData.resultados === 'string') {
-             let rawString = apiData.resultados;
-             if (rawString === "" || rawString === "SIN RESULTADOS") return [];
-             
-             // ý separa registros, ü separa campos
-             const rows = rawString.split('ý'); 
-             return rows.filter(r => r.includes('ü')).map((row, index) => {
-                const parts = row.split('ü'); 
-                return {
-                    id: index + 1,
-                    timestamp: parts[0] || 'N/A', // Fecha/Hora
-                    user: parts[1] || 'Desconocido',
-                    ip: parts[2] || 'N/A',
-                    status: parts[4] || 'Desconocido', // EXITOSO
-                    duration: parts[5] || 'N/A'
-                };
-             });
-        }
+    // 4. PROCESAMIENTO DE HISTORIAL
+    // Solo entramos aquí si el payload realmente contiene resultados de historial
+    if (isHistoryPayload && (option === 'GET_HISTORY' || option === 'GET_DASHBOARD')) {
+        let rawString = apiData.resultados;
+        if (rawString === "" || rawString === "SIN RESULTADOS") return [];
+        
+        // ý separa registros, ü separa campos
+        const rows = rawString.split('ý'); 
+        return rows.filter(r => r.includes('ü')).map((row, index) => {
+            const parts = row.split('ü'); 
+            return {
+                id: index + 1,
+                timestamp: parts[0] || 'N/A',
+                user: parts[1] || 'Desconocido',
+                ip: parts[2] || 'N/A',
+                status: parts[4] || 'Desconocido',
+                duration: parts[5] || 'N/A'
+            };
+        });
     }
+
+    // 5. Fallback
     return [];
 }
 
@@ -156,33 +173,41 @@ function processDashboardData(users, history) {
 export default {
   async getData(p_option, p_parameters = {}) {
     try {
-        if (p_option === 'GET_DASHBOARD') {
-            // Ejecutamos ambas peticiones en paralelo para asegurar que lleguen los datos
-            const [usersResp, historyResp] = await Promise.all([
-                apiClient.get('/Usuarios.registrados'),
-                apiClient.post('/subroutine/OBTENER.CONEXIONES', {
-                    "usuario": "", "fecha.ini": "", "fecha.fin": "", "ip": "", "estado": ""
-                })
-            ]);
+      if (p_option === 'GET_DASHBOARD') {
+        // Usamos allSettled: si una falla, la otra sigue viva
+        const results = await Promise.allSettled([
+          apiClient.get('/Usuarios.registrados'),
+          apiClient.post('/subroutine/OBTENER.CONEXIONES', {
+            "usuario": "", "fecha.ini": "", "fecha.fin": "", "ip": "", "estado": ""
+          })
+        ]);
 
-            const usersClean = dataMapper('GET_USERS', usersResp.data);
-            const historyClean = dataMapper('GET_HISTORY', historyResp.data);
-            
-            return { data: processDashboardData(usersClean, historyClean) };
-        }
+        // Extraemos los datos solo si la promesa tuvo éxito
+        const usersRaw = results[0].status === 'fulfilled' ? results[0].value.data : {};
+        const historyRaw = results[1].status === 'fulfilled' ? results[1].value.data : { resultados: "" };
 
-        // ... (resto de lógica para GET_USERS y GET_HISTORY se mantiene igual)
-        let response = await (p_option === 'GET_USERS' 
-            ? apiClient.get('/Usuarios.registrados') 
-            : apiClient.post('/subroutine/OBTENER.CONEXIONES', {
-                "usuario": "", "fecha.ini": getFirstDayOfMonth(), "fecha.fin": getToday(), "ip": "", "estado": ""
-            }));
+        // Mapeamos de forma independiente
+        const usersClean = dataMapper('GET_USERS', usersRaw);
+        const historyClean = dataMapper('GET_HISTORY', historyRaw);
+        
+        // totalUsers será usersClean.length (DINÁMICO)
+        return { data: processDashboardData(usersClean, historyClean) };
+      }
 
-        return { data: dataMapper(p_option, response.data) };
+      // ... resto de la lógica para otras pantallas
+      let response = await (p_option === 'GET_USERS' 
+        ? apiClient.get('/Usuarios.registrados') 
+        : apiClient.post('/subroutine/OBTENER.CONEXIONES', p_parameters));
+
+      return { data: dataMapper(p_option, response.data) };
 
     } catch (error) {
-        console.error(`[API Error] Fallo en ${p_option}:`, error);
-        return { data: [] };
+      console.error(`[API Error]`, error);
+      // Retornamos estructura básica para que el Dashboard no se rompa
+      if (p_option === 'GET_DASHBOARD') {
+        return { data: { kpis: { totalUsers: 0, activeConnections: 0, alerts: 0 }, charts: { trends: {labels:[], data:[]}, topIps: {labels:[], data:[]} } } };
+      }
+      return { data: [] };
     }
   }
 };

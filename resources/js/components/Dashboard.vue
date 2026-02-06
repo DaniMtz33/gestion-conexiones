@@ -69,7 +69,9 @@ export default {
   name: 'Dashboard',
   data() {
     return {
-      kpis: { activeConnections: 0, totalUsers: 0, alerts: 0 },
+      // Inicializamos con null o '...' para diferenciar carga de error
+      kpis: { activeConnections: 0, totalUsers: '...', alerts: 0 },
+      loading: true,
       trendsChartInstance: null,
       ipsChartInstance: null
     };
@@ -80,23 +82,48 @@ export default {
   methods: {
     async loadDashboardData() {
       try {
+        // 1. Intentamos recuperar el último total conocido de la memoria local
+        const lastKnownTotal = localStorage.getItem('last_total_users');
+        if (lastKnownTotal) {
+            this.kpis.totalUsers = lastKnownTotal;
+        }
+
         const response = await apiService.getData('GET_DASHBOARD');
-        const data = response.data;
         
-        this.kpis = data.kpis;
-        // Esperamos un momento para asegurar que el DOM (los canvas) estén listos
-        this.$nextTick(() => {
-            this.renderCharts(data.charts);
-        });
-        
+        if (response && response.data && response.data.kpis) {
+            const data = response.data;
+            const newTotal = data.kpis.totalUsers;
+
+            // 2. REGLA DE ESTABILIDAD: 
+            // Si el nuevo total es 0 pero la API ya nos había dado un número antes (ej. 212),
+            // ignoramos el 0 y mantenemos el valor anterior.
+            if (newTotal > 0) {
+                this.kpis.totalUsers = newTotal;
+                localStorage.setItem('last_total_users', newTotal); // Guardamos para la próxima recarga
+            } else if (this.kpis.totalUsers === '...') {
+                // Si es la primera vez y falla, ponemos 0
+                this.kpis.totalUsers = 0;
+            }
+
+            // Actualizamos el resto de KPIs que no fallan
+            this.kpis.activeConnections = data.kpis.activeConnections;
+            this.kpis.alerts = data.kpis.alerts;
+            
+            this.$nextTick(() => {
+                if (data.charts) {
+                    this.renderCharts(data.charts);
+                }
+            });
+        }
       } catch (error) {
         console.error("Error cargando dashboard:", error);
       }
     },
+
     renderCharts(charts) {
       // 1. Gráfica de Tendencias
       const ctx1 = document.getElementById('trendsChart');
-      if (ctx1) {
+      if (ctx1 && charts.trends) {
           if (this.trendsChartInstance) this.trendsChartInstance.destroy();
           
           this.trendsChartInstance = new Chart(ctx1, {
@@ -112,13 +139,17 @@ export default {
                 fill: true
               }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+              responsive: true, 
+              maintainAspectRatio: false,
+              animation: { duration: 1000 } // Añadimos animación suave
+            }
           });
       }
 
       // 2. Gráfica de Top IPs
       const ctx2 = document.getElementById('ipsChart');
-      if (ctx2) {
+      if (ctx2 && charts.topIps) {
           if (this.ipsChartInstance) this.ipsChartInstance.destroy();
 
           this.ipsChartInstance = new Chart(ctx2, {
@@ -128,16 +159,14 @@ export default {
               datasets: [{
                 label: 'Intentos de Conexión',
                 data: charts.topIps.data,
-                backgroundColor: [
-                  '#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14'
-                ],
+                backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14'],
                 borderWidth: 1
               }]
             },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                indexAxis: 'y' // Esto hace las barras horizontales
+                indexAxis: 'y'
             }
           });
       }
