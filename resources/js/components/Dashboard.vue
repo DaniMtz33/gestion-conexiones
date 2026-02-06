@@ -22,7 +22,7 @@
       <div class="col-md-4">
         <div class="card kpi-card border-warning mb-3">
           <div class="card-body text-warning">
-            <h5 class="card-title text-uppercase font-weight-bold">Alertas</h5>
+            <h5 class="card-title text-uppercase font-weight-bold">Media Diaria (Mes)</h5>
             <p class="card-text display-4">{{ kpis.alerts }}</p>
           </div>
         </div>
