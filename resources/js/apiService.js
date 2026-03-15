@@ -9,83 +9,54 @@ const apiClient = axios.create({
   }
 });
 
-function getToday() {
-    const date = new Date();
-    return formatDate(date);
-}
+// --- HELPERS DE FECHA ---
 
-function getFirstDayOfMonth() {
-    const date = new Date();
-    date.setDate(1); 
-    return formatDate(date);
-}
-
-function formatDate(date) {
+function formatDatePadded(date) {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
 }
 
-function dataMapper(option, apiData) {
-    // 1. Validación de entrada
-    if (!apiData) return [];
+// Obtiene la fecha de hoy
+function getToday() {
+    return formatDatePadded(new Date());
+}
 
+// Obtiene la fecha de hace exactamente un mes
+function getLastMonthDate() {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return formatDatePadded(d);
+}
+
+// --- MAPEO DE DATOS ---
+
+function dataMapper(option, apiData) {
+    if (!apiData) return [];
     if (typeof apiData === 'string') {
-        try { 
-            apiData = JSON.parse(apiData); 
-        } catch (e) { 
-            console.error("Error parseando JSON:", e);
-            return []; 
-        }
+        try { apiData = JSON.parse(apiData); } catch (e) { return []; }
     }
 
-    // 2. Identificar el contenido del payload
-    // ¿Es un payload de usuarios? (Tiene la clave o es un array)
-    const hasUserKey = Object.prototype.hasOwnProperty.call(apiData, 'Usuarios.registrados');
-    const isUserArray = Array.isArray(apiData);
-    
-    // ¿Es un payload de historial? (Tiene la clave resultados)
+    const usersList = apiData['Usuarios.registrados'] || (Array.isArray(apiData) ? apiData : null);
     const isHistoryPayload = apiData && typeof apiData.resultados === 'string';
 
-    // 3. PROCESAMIENTO DE USUARIOS
-    // Solo entramos aquí si el payload realmente contiene usuarios
-    if ((hasUserKey || isUserArray) && (option === 'GET_USERS' || option === 'GET_DASHBOARD')) {
-        const users = apiData['Usuarios.registrados'] || (isUserArray ? apiData : []);
-        
-        // Si no hay usuarios en un payload que debería tenerlos, devolvemos lo que hay para no romper la cadena
-        if (users.length === 0 && option === 'GET_USERS') return [];
-
-        return users.map((user, index) => {
-            // Manejo de IP: Aplanamos el array [[ "ip" ]] que devuelve UniVerse
-            let ip = 'N/A';
-            if (Array.isArray(user.ip_autorizada)) {
-                ip = user.ip_autorizada.flat().join(', ');
-            } else if (user.ip_autorizada) {
-                ip = user.ip_autorizada;
-            }
-
-            return {
-                id: index + 1,
-                username: user._id || `user_${index}`,
-                name: user.nombre_usuario || user._id,
-                owner: user.propietario || 'N/A',
-                description: user.observaciones || '',
-                status: user.activo === 'SI' ? 'Activo' : 'Inactivo',
-                api_id: user._id,
-                ip_address: ip,
-                u2version: user.u2version || null
-            };
-        });
+    if (usersList && (option === 'GET_USERS' || option === 'GET_DASHBOARD')) {
+        return usersList.map((user, index) => ({
+            id: index + 1,
+            username: user._id,
+            name: user.nombre_usuario || user._id,
+            owner: user.propietario || 'N/A',
+            description: user.observaciones || '',
+            status: user.activo === 'SI' ? 'Activo' : 'Inactivo',
+            ip_address: Array.isArray(user.ip_autorizada) ? user.ip_autorizada.flat().join(', ') : (user.ip_autorizada || 'N/A'),
+            u2version: user.u2version || null
+        }));
     }
 
-    // 4. PROCESAMIENTO DE HISTORIAL
-    // Solo entramos aquí si el payload realmente contiene resultados de historial
     if (isHistoryPayload && (option === 'GET_HISTORY' || option === 'GET_DASHBOARD')) {
         let rawString = apiData.resultados;
-        if (rawString === "" || rawString === "SIN RESULTADOS") return [];
-        
-        // ý separa registros, ü separa campos
+        if (!rawString || rawString === "" || rawString === "SIN RESULTADOS") return [];
         const rows = rawString.split('ý'); 
         return rows.filter(r => r.includes('ü')).map((row, index) => {
             const parts = row.split('ü'); 
@@ -99,66 +70,59 @@ function dataMapper(option, apiData) {
             };
         });
     }
-
-    // 5. Fallback
     return [];
 }
 
+// --- PROCESAMIENTO PARA EL DASHBOARD ---
+
 function processDashboardData(users, history) {
     const totalUsers = users.length;
-
-    // 1. Conexiones Activas (Contamos registros 'EXITOSO')
+    
     const activeConnections = history.filter(h => 
-        h.status && h.status.toLowerCase().includes('exitoso')
+        h.status && h.status.toUpperCase().includes('EXITOSO')
     ).length;
 
-    // 2. Media Diaria (Mes actual día por día)
-    const today = new Date();
-    const daysInMonth = today.getDate();
-    const trendsMap = {};
     const labels = [];
-    
-    for(let i = 1; i <= daysInMonth; i++) {
-        const d = new Date(today.getFullYear(), today.getMonth(), i);
-        const dayStr = formatDate(d);
-        trendsMap[dayStr] = 0;
+    const trendsMap = {};
+    const today = new Date();
+
+    // Generar etiquetas para los últimos 30 días (Rango móvil)
+    for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        const dayStr = formatDatePadded(d);
         labels.push(dayStr);
+        trendsMap[dayStr] = 0;
     }
 
-    let totalConnectionsThisMonth = 0;
+    let totalInRange = 0;
     history.forEach(h => {
         let datePart = h.timestamp ? h.timestamp.split(' ')[0] : "";
-        // Normalización de fecha (5/02/2026 -> 05/02/2026)
         if (datePart && datePart.includes('/')) {
             const dp = datePart.split('/');
-            if (dp[0].length === 1) dp[0] = '0' + dp[0];
-            if (dp[1].length === 1) dp[1] = '0' + dp[1];
-            datePart = dp.join('/');
-        }
-        if (datePart && trendsMap.hasOwnProperty(datePart)) {
-            trendsMap[datePart]++;
-            totalConnectionsThisMonth++;
+            const norm = `${dp[0].padStart(2, '0')}/${dp[1].padStart(2, '0')}/${dp[2]}`;
+            if (Object.prototype.hasOwnProperty.call(trendsMap, norm)) {
+                trendsMap[norm]++;
+                totalInRange++;
+            }
         }
     });
 
-    const dailyAverage = daysInMonth > 0 ? (totalConnectionsThisMonth / daysInMonth).toFixed(2) : 0;
-
-    // 3. Top IPs (Mayor a menor uso)
     const ipMap = {};
     history.forEach(h => {
-        const ip = h.ip && h.ip !== 'N/A' ? h.ip.trim() : null;
-        if (ip) ipMap[ip] = (ipMap[ip] || 0) + 1;
+        if (h.ip && h.ip !== 'N/A') {
+            const ip = h.ip.trim();
+            ipMap[ip] = (ipMap[ip] || 0) + 1;
+        }
     });
 
-    const sortedIps = Object.entries(ipMap)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    const sortedIps = Object.entries(ipMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
     return {
         kpis: {
             totalUsers,
             activeConnections,
-            alerts: dailyAverage // Media diaria
+            alerts: (totalInRange / 30).toFixed(2) // Media diaria sobre 30 días
         },
         charts: {
             trends: { labels, data: labels.map(l => trendsMap[l]) },
@@ -173,41 +137,62 @@ function processDashboardData(users, history) {
 export default {
   async getData(p_option, p_parameters = {}) {
     try {
-      if (p_option === 'GET_DASHBOARD') {
-        // Usamos allSettled: si una falla, la otra sigue viva
-        const results = await Promise.allSettled([
-          apiClient.get('/Usuarios.registrados'),
-          apiClient.post('/subroutine/OBTENER.CONEXIONES', {
-            "usuario": "", "fecha.ini": "", "fecha.fin": "", "ip": "", "estado": ""
-          })
-        ]);
+        if (p_option === 'GET_HISTORY') {
+            const mappedParams = {
+                "usuario": p_parameters.search || "", 
+                "fecha.ini": p_parameters.startDate || "", 
+                "fecha.fin": p_parameters.endDate || "", // Ahora enviamos el fin del rango
+                "ip": "", 
+                "estado": ""
+            };
 
-        // Extraemos los datos solo si la promesa tuvo éxito
-        const usersRaw = results[0].status === 'fulfilled' ? results[0].value.data : {};
-        const historyRaw = results[1].status === 'fulfilled' ? results[1].value.data : { resultados: "" };
+            let response = await apiClient.post('/subroutine/OBTENER.CONEXIONES', mappedParams);
+            return { data: dataMapper(p_option, response.data) };
+        }
 
-        // Mapeamos de forma independiente
-        const usersClean = dataMapper('GET_USERS', usersRaw);
-        const historyClean = dataMapper('GET_HISTORY', historyRaw);
-        
-        // totalUsers será usersClean.length (DINÁMICO)
-        return { data: processDashboardData(usersClean, historyClean) };
-      }
+        if (p_option === 'GET_DASHBOARD') {
+            // Definimos el rango de un mes para la API
+            const fechaFin = getToday();
+            const fechaIni = getLastMonthDate();
 
-      // ... resto de la lógica para otras pantallas
-      let response = await (p_option === 'GET_USERS' 
-        ? apiClient.get('/Usuarios.registrados') 
-        : apiClient.post('/subroutine/OBTENER.CONEXIONES', p_parameters));
+            const results = await Promise.allSettled([
+                apiClient.get('/Usuarios.registrados'),
+                apiClient.post('/subroutine/OBTENER.CONEXIONES', {
+                    "usuario": "", 
+                    "fecha.ini": fechaIni, 
+                    "fecha.fin": fechaFin, 
+                    "ip": "", 
+                    "estado": ""
+                })
+            ]);
 
-      return { data: dataMapper(p_option, response.data) };
+            const usersRaw = results[0].status === 'fulfilled' ? results[0].value.data : {};
+            const historyRaw = results[1].status === 'fulfilled' ? results[1].value.data : { resultados: "" };
+
+            const usersClean = dataMapper('GET_USERS', usersRaw);
+            const historyClean = dataMapper('GET_HISTORY', historyRaw);
+            
+            return { data: processDashboardData(usersClean, historyClean) };
+        }
+
+        const isUsers = p_option === 'GET_USERS';
+        const response = await (isUsers 
+            ? apiClient.get('/Usuarios.registrados') 
+            : apiClient.post('/subroutine/OBTENER.CONEXIONES', p_parameters));
+
+        return { data: dataMapper(p_option, response.data) };
 
     } catch (error) {
-      console.error(`[API Error]`, error);
-      // Retornamos estructura básica para que el Dashboard no se rompa
-      if (p_option === 'GET_DASHBOARD') {
-        return { data: { kpis: { totalUsers: 0, activeConnections: 0, alerts: 0 }, charts: { trends: {labels:[], data:[]}, topIps: {labels:[], data:[]} } } };
-      }
-      return { data: [] };
+        console.error(`[API Error] Fallo en ${p_option}:`, error);
+        if (p_option === 'GET_DASHBOARD') {
+            return { 
+                data: { 
+                    kpis: { totalUsers: 0, activeConnections: 0, alerts: 0 }, 
+                    charts: { trends: {labels:[], data:[]}, topIps: {labels:[], data:[]} } 
+                } 
+            };
+        }
+        return { data: [] };
     }
   }
 };

@@ -1,85 +1,111 @@
 <template>
-  <div class="security-container">
-    <h1>Módulo de Seguridad</h1>
-    <p>Gestión de usuarios del sistema (Administradores, Operadores) y sus roles de acceso.</p>
+  <div class="settings-page">
+    <header class="settings-header">
+      <h1>Módulo de Seguridad</h1>
+      <p>Gestión de usuarios del sistema (Administradores, Operadores) y sus roles de acceso.</p>
+    </header>
 
-    <div class="header-actions">
-      <button @click="openCreateUserModal" class="button-primary">
-        + Dar de Alta Nuevo Usuario
-      </button>
-    </div>
-
-    <div class="user-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Email</th>
-            <th>Rol</th>
-            <th>Estado</th>
-            <th>Última Conexión</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in systemUsers" :key="user.id">
-            <td>{{ user.name }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.role }}</td>
-            <td>
-              <span :class="['status', user.status === 'Activo' ? 'status-active' : 'status-inactive']">
-                {{ user.status }}
-              </span>
-            </td>
-            <td>{{ user.lastLogin }}</td>
-            <td>
-              <button @click="openEditModal(user)" class="action-button">Editar/Roles</button>
-              <button @click="toggleStatus(user)" :class="[user.status === 'Activo' ? 'button-danger' : 'button-success']">
-                {{ user.status === 'Activo' ? 'Desactivar' : 'Activar' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <Modal :show="isModalVisible" @close="closeModal">
-    <template v-slot:header>
-      <h3>{{ isEditMode ? 'Editar Usuario del Sistema' : 'Dar de Alta Usuario' }}</h3>
-    </template>
-    <template v-slot:body>
-      <form>
-        <div class="form-group">
-          <label for="userName">Nombre</label>
-          <input type="text" id="userName" v-model="form.name">
-        </div>
-        <div class="form-group">
-          <label for="userEmail">Email</label>
-          <input type="email" id="userEmail" v-model="form.email">
-        </div>
-        <div class="form-group">
-          <label for="userRole">Rol</label>
-          <select id="userRole" v-model="form.role">
-            <option value="Administrador">Administrador</option>
-            <option value="Operador">Operador</option>
-            <option value="Auditor">Auditor</option>
-          </select>
-        </div>
-        <div class="form-group" v-if="!isEditMode || showPasswordFields">
-          <label for="userPassword">Contraseña</label>
-          <input type="password" id="userPassword" v-model="form.password">
-        </div>
-         <button v-if="isEditMode" @click.prevent="showPasswordFields = !showPasswordFields" class="button-link">
-             {{ showPasswordFields ? 'Ocultar campos de contraseña' : 'Cambiar Contraseña' }}
+    <main class="settings-content">
+      <div class="text-right mb-4">
+        <button @click="openCreateUserModal" class="btn-verify">
+          + Dar de Alta Nuevo Usuario
         </button>
-      </form>
-    </template>
-    <template v-slot:footer>
-      <button @click="closeModal" class="button-secondary">Cancelar</button>
-      <button @click="saveUser" class="button-primary">Guardar</button>
-    </template>
-  </Modal>
+      </div>
+
+      <section class="card p-0 overflow-hidden">
+        <div class="card-header p-4">
+          <div class="icon-circle bg-blue">
+            <i class="icon">🔒</i>
+          </div>
+          <h3>Usuarios del Sistema</h3>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Última Conexión</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in systemUsers" :key="user.id">
+                <td class="font-weight-bold text-dark">{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                  <span class="role-badge">{{ user.role }}</span>
+                </td>
+                <td>
+                  <span :class="['status-badge', user.status === 'Activo' ? 'success' : 'error']">
+                    {{ user.status }}
+                  </span>
+                </td>
+                <td class="text-muted small">{{ user.lastLogin }}</td>
+                <td class="text-center">
+                  <div class="btn-group">
+                    <button @click="openEditModal(user)" class="btn-action edit">
+                      Editar/Roles
+                    </button>
+                    <button 
+                      @click="toggleStatus(user)" 
+                      :class="['btn-status', user.status === 'Activo' ? 'deactivate' : 'activate']"
+                    >
+                      {{ user.status === 'Activo' ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <Modal :show="isModalVisible" @close="closeModal">
+      <template v-slot:header>
+        <h3>{{ isEditMode ? 'Editar Usuario del Sistema' : 'Dar de Alta Usuario' }}</h3>
+      </template>
+      
+      <template v-slot:body>
+        <form>
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Nombre</label>
+            <input type="text" v-model="form.name" class="styled-input">
+          </div>
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Email</label>
+            <input type="email" v-model="form.email" class="styled-input">
+          </div>
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Rol</label>
+            <div class="select-wrapper">
+              <select v-model="form.role" class="styled-input">
+                <option value="Administrador">Administrador</option>
+                <option value="Operador">Operador</option>
+                <option value="Auditor">Auditor</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group mb-2" v-if="!isEditMode || showPasswordFields">
+            <label class="font-weight-bold">Contraseña</label>
+            <input type="password" v-model="form.password" class="styled-input">
+          </div>
+          <button v-if="isEditMode" @click.prevent="showPasswordFields = !showPasswordFields" class="btn-link">
+            {{ showPasswordFields ? 'Ocultar campos de contraseña' : 'Cambiar Contraseña' }}
+          </button>
+        </form>
+      </template>
+      
+      <template v-slot:footer>
+        <button @click="closeModal" class="btn-cancel">Cancelar</button>
+        <button @click="saveUser" class="btn-verify">Guardar Usuario</button>
+      </template>
+    </Modal>
+  </div>
 </template>
 
 <script>
@@ -111,7 +137,7 @@ export default {
     openEditModal(user) {
       this.isEditMode = true;
       this.showPasswordFields = false;
-      this.form = { ...user, password: '' }; // Carga los datos del usuario para editar
+      this.form = { ...user, password: '' }; 
       this.isModalVisible = true;
     },
     closeModal() {
@@ -119,13 +145,11 @@ export default {
       this.showPasswordFields = false;
     },
     saveUser() {
-      // **Simulación de Módulo 6: Alta/Edición de Usuario**
       console.log('Guardando usuario:', this.form);
       alert(this.isEditMode ? 'Usuario actualizado con éxito (Simulación).' : 'Usuario dado de alta con éxito (Simulación).');
       this.closeModal();
     },
     toggleStatus(user) {
-      // **Simulación de Módulo 6: Desactivar/Activar**
       user.status = user.status === 'Activo' ? 'Inactivo' : 'Activo';
       alert(`Usuario ${user.name} ha sido ${user.status === 'Activo' ? 'activado' : 'desactivado'} (Simulación).`);
     }
@@ -134,118 +158,182 @@ export default {
 </script>
 
 <style scoped>
-.security-container {
-  font-family: sans-serif;
+.settings-page {
   max-width: 1000px;
   margin: 40px auto;
+  padding: 0 20px;
+  font-family: 'Inter', sans-serif;
+  color: #2d3748;
 }
-.header-actions {
-    margin-bottom: 20px;
-    text-align: right;
+
+.settings-header {
+  margin-bottom: 30px;
+  text-align: center;
 }
-.button-primary {
-  padding: 10px 15px; 
-  border: none; 
-  background-color: #007bff; 
-  color: white; 
-  border-radius: 5px; 
-  cursor: pointer;
-  transition: background-color 0.3s;
+
+.settings-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 8px;
 }
-.user-table {
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+
+.settings-header p {
+  color: #718096;
 }
-table {
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #edf2f7;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.icon-circle {
+  width: 36px;
+  height: 36px;
+  background: #ebf8ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bg-blue { background: #ebf8ff; color: #4299e1; }
+
+.custom-table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
+
+.custom-table th {
+  background-color: #f7fafc;
+  padding: 15px;
   text-align: left;
-  padding: 12px 15px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
-th {
-  background-color: #f8f9fa;
+
+.custom-table td {
+  padding: 15px;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.95rem;
+}
+
+.role-badge {
+  background: #f7fafc;
+  color: #4a5568;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
 }
-.status {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
+
+.status-badge.success { background: #f0fff4; color: #2f855a; }
+.status-badge.error { background: #fff5f5; color: #c53030; }
+
+.btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
-.status-active {
-  background-color: #e2f5ea;
-  color: #34a853;
+
+.btn-action {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
-.status-inactive {
-  background-color: #f8e1e1;
-  color: #ea4335;
+
+.btn-action.edit { background: #ebf8ff; color: #3182ce; }
+
+.btn-status {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 90px;
 }
-.action-button {
-    padding: 5px 10px;
-    background-color: #ffc107;
-    color: #333;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 8px; /* <-- Margen a la derecha del primer botón */
-    margin-bottom: 4px; /* <-- Pequeño margen inferior para separación en líneas */
+
+.btn-status.deactivate { background: #fff5f5; color: #e53e3e; }
+.btn-status.activate { background: #f0fff4; color: #38a169; }
+
+.btn-verify {
+  background: #4299e1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.button-danger {
-    padding: 5px 10px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-bottom: 4px; /* <-- Pequeño margen inferior */
+
+.btn-cancel {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 10px;
 }
-.button-success {
-    padding: 5px 10px;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-bottom: 4px; /* <-- Pequeño margen inferior */
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #4299e1;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  margin-top: 5px;
 }
-.button-link {
-    background: none;
-    border: none;
-    color: #007bff;
-    text-decoration: underline;
-    cursor: pointer;
-    padding: 0;
-    font-size: 14px;
-    margin-top: 5px;
-    display: block;
+
+/* --- SOLUCIÓN AL DESBORDE --- */
+.styled-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #edf2f7;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  box-sizing: border-box; /* Asegura que el padding no sume al ancho total */
 }
-/* Estilos para el Modal (necesarios para los inputs) */
-.form-group {
-    margin-bottom: 15px;
+
+.styled-input:focus {
+  outline: none;
+  border-color: #4299e1;
 }
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-.form-group input, .form-group select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-}
-.button-secondary { 
-  padding: 10px 15px; 
-  border: 1px solid #ccc; 
-  background-color: #f8f9fa; 
-  border-radius: 5px; 
-  cursor: pointer; 
-  margin-right: 10px; 
-}
+
+.text-right { text-align: right; }
+.table-responsive { width: 100%; overflow-x: auto; }
 </style>

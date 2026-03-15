@@ -1,68 +1,91 @@
-// resources/js/components/ConnectionHistory.vue
-
 <template>
-  <div class="history-container">
-    <h1>Historial de Conexiones</h1>
-    <p>Registro histórico de todos los intentos de conexión al servidor.</p>
-    
-    <div class="filter-controls">
-      <input 
-        type="text" 
-        v-model="searchQuery" 
-        placeholder="Buscar por Usuario o IP de Origen..."
-        class="filter-input"
-        @keyup.enter="fetchHistory"
-      />
-      <label for="dateRange" class="date-label">Rango de Fechas:</label>
-      <input 
-        type="text" 
-        v-model="dateRange" 
-        placeholder="Defecto: Mes Actual" 
-        class="filter-input date-input"
-        @change="fetchHistory"
-      />
-      <button @click="fetchHistory" class="apply-filter-button">Aplicar Filtros</button>
-    </div>
-    <div class="history-table">
-      <table>
-        <thead>
-          <tr>
-            <th @click="sortUsers" style="cursor: pointer; user-select: none;">
-              Usuario
-              <span v-if="sortOrder === 'asc'" style="color: #34a853;">▲</span>
-              <span v-else-if="sortOrder === 'desc'" style="color: #ea4335;">▼</span>
-              <span v-else style="color: #ccc;">⇵</span>
-            </th>
-            <th>IP de Origen</th>
-            <th>Fecha y Hora</th>
-            <th>Resultado</th>
-            <th>Duración</th> 
-            <th>Motivo de desconexión</th> 
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="connections.length === 0">
-             <td colspan="6" style="text-align:center; padding: 20px;">No se encontraron registros</td>
-          </tr>
-          <tr v-for="conn in connections" :key="conn.id">
-            <td>{{ conn.user }}</td>
-            <td>{{ conn.ip }}</td>
-            <td>{{ conn.timestamp }}</td>
-            <td>
-              <span :class="getStatusClass(conn.status)">
-                {{ conn.status }}
-              </span>
-            </td>
-            <td>{{ conn.duration || 'N/A' }}</td>
-            <td>{{ conn.disconnectionReason || 'N/A' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="settings-page">
+    <header class="settings-header">
+      <h1>Historial de Conexiones</h1>
+      <p>Registro histórico de todos los intentos de conexión al servidor.</p>
+    </header>
+
+    <main class="settings-content">
+      <section class="card mb-4 shadow-sm">
+        <div class="card-header">
+          <div class="icon-circle">
+            <i class="search-icon">🔍</i>
+          </div>
+          <h2>Filtrar Resultados</h2>
+        </div>
+        
+        <div class="search-box">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="Buscar por Usuario o IP..."
+            class="styled-input"
+            @keyup.enter="fetchHistory"
+          >
+          <div class="date-input-wrapper">
+            <input 
+              type="text" 
+              v-model="dateRange" 
+              placeholder="Rango (DD/MM/YYYY)" 
+              class="styled-input"
+              @change="fetchHistory"
+            >
+          </div>
+          <button @click="fetchHistory" class="btn-verify">
+            Aplicar Filtros
+          </button>
+        </div>
+      </section>
+
+      <section class="card p-0 overflow-hidden">
+        <div class="card-header p-4 d-flex justify-content-between align-items-center">
+          <h3>Registros de Acceso</h3>
+          <span class="records-count">{{ connections.length }} resultados encontrados</span>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th @click="sortUsers" class="sortable-header">
+                  Usuario
+                  <span v-if="sortOrder === 'asc'" class="sort-icon">▲</span>
+                  <span v-else-if="sortOrder === 'desc'" class="sort-icon">▼</span>
+                  <span v-else class="sort-icon neutral">⇵</span>
+                </th>
+                <th>IP de Origen</th>
+                <th>Fecha y Hora</th>
+                <th>Resultado</th>
+                <th>Duración</th> 
+                <th>Motivo de desconexión</th> 
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="connections.length === 0">
+                 <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros en este periodo</td>
+              </tr>
+              <tr v-for="conn in connections" :key="conn.id">
+                <td class="font-weight-bold text-dark">{{ conn.user }}</td>
+                <td class="text-mono">{{ conn.ip }}</td>
+                <td>{{ conn.timestamp }}</td>
+                <td>
+                  <span :class="getStatusClass(conn.status)">
+                    {{ conn.status }}
+                  </span>
+                </td>
+                <td>{{ conn.duration || 'N/A' }}</td>
+                <td>{{ conn.disconnectionReason || 'N/A' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 </template>
 
 <script>
+/* LÓGICA CONSERVADA INTACTA */
 import apiService from '../apiService';
 
 export default {
@@ -72,7 +95,7 @@ export default {
       connections: [],
       searchQuery: '',
       dateRange: '',
-      sortOrder: null // 'asc' o 'desc'
+      sortOrder: null 
     };
   },
   mounted() {
@@ -106,102 +129,190 @@ export default {
         }
       });
     },
-    // NUEVO MÉTODO AGREGADO
+
     getStatusClass(status) {
       if (!status) return 'status';
-      
-      // Convertimos a mayúsculas para comparar sin errores
       const s = status.toString().toUpperCase();
-
-      // Si dice EXITOSO, CONECTADO o SI -> Verde
       if (s === 'EXITOSO' || s === 'CONECTADO' || s === 'SI') {
-          return 'status status-success';
+          return 'status-badge success';
       }
-      
-      // Cualquier otra cosa -> Rojo (o el color de failed)
-      return 'status status-failed';
+      return 'status-badge error';
     }
   }
 };
 </script>
 
 <style scoped>
-.history-container {
-  font-family: sans-serif;
+/* Unificación con ConnectionSettings.vue */
+.settings-page {
   max-width: 1200px;
   margin: 40px auto;
-  padding: 20px;
+  padding: 0 20px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: #2d3748;
 }
-.filter-controls {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 25px;
-    align-items: center;
+
+.settings-header {
+  margin-bottom: 30px;
+  text-align: center;
 }
-.filter-input {
-    padding: 10px 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-    flex-grow: 1;
-    max-width: 300px;
+
+.settings-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 8px;
 }
-.date-input {
-    max-width: 200px;
+
+.settings-header p {
+  color: #718096;
 }
-.date-label {
-    font-weight: bold;
-    color: #555;
-    white-space: nowrap;
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #edf2f7;
 }
-.apply-filter-button {
-    padding: 10px 15px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
 }
-.apply-filter-button:hover {
-    background-color: #0056b3;
+
+.card-header h2, .card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
 }
-.history-table {
-  background-color: #ffffff;
-  padding: 20px;
+
+.icon-circle {
+  width: 36px;
+  height: 36px;
+  background: #ebf8ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-box {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.styled-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #edf2f7;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  overflow-x: auto;
+  font-size: 1rem;
+  transition: all 0.2s;
 }
-table {
+
+.styled-input:focus {
+  outline: none;
+  border-color: #4299e1;
+}
+
+.date-input-wrapper {
+  max-width: 220px;
+}
+
+.btn-verify {
+  background: #4299e1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.records-count {
+  background: #f7fafc;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+/* Tabla Estilizada */
+.custom-table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
+
+.custom-table th {
+  background-color: #f7fafc;
+  padding: 15px;
   text-align: left;
-  padding: 12px 15px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
-th {
-  background-color: #f8f9fa;
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable-header:hover {
+  color: #4299e1;
+}
+
+.sort-icon {
+  margin-left: 5px;
+  font-size: 0.8rem;
+}
+
+.sort-icon.neutral {
+  color: #cbd5e0;
+}
+
+.custom-table td {
+  padding: 15px;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.95rem;
+}
+
+.text-mono {
+  font-family: 'Courier New', Courier, monospace;
   font-weight: 600;
 }
-/* Estilos base para el badge */
-.status {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  display: inline-block; /* Para que se vea bien como badge */
+
+/* Badges de estado modernos */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
 }
-/* Verde */
-.status-success {
-  background-color: #e2f5ea;
-  color: #34a853;
+
+.status-badge.success { background: #f0fff4; color: #2f855a; }
+.status-badge.error { background: #fff5f5; color: #c53030; }
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
 }
-/* Rojo */
-.status-failed {
-  background-color: #f8e1e1;
-  color: #ea4335;
+
+@media (max-width: 768px) {
+  .search-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .date-input-wrapper {
+    max-width: 100%;
+  }
 }
 </style>

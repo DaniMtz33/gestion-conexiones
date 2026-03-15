@@ -1,72 +1,104 @@
 <template>
-  <div class="user-list-container">
-    <h1>Gestión de Usuarios</h1>
-    <p>Lista de todos los usuarios con conexiones definidas en el servidor.</p>
-    
-    <div class="search-bar">
-      <input 
-        type="text" 
-        v-model="searchQuery" 
-        placeholder="Buscar por nombre de usuario..."
-      >
-    </div>
+  <div class="settings-page">
+    <header class="settings-header">
+      <h1>Gestión de Usuarios</h1>
+      <p>Lista de todos los usuarios con conexiones definidas en el servidor.</p>
+    </header>
 
-    <div class="user-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Propietario</th>
-            <th>Descripción</th>
-            <th>Límite de Conexiones</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in filteredUsers" :key="user.id">
-            <td>{{ user.username }}</td>
-            <td>{{ user.owner }}</td>
-            <td>{{ user.description }}</td>
-            <td>{{ user.connectionLimit }}</td>
-            <td>
-              <span :class="['status', user.status === 'Activo' ? 'status-active' : 'status-inactive']">
-                {{ user.status }}
-              </span>
-            </td>
-            <td>
-              <button @click="openEditModal(user)" class="edit-button">Editar</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <main class="settings-content">
+      <section class="card shadow-sm mb-4">
+        <div class="card-header">
+          <div class="icon-circle">
+            <i class="search-icon">🔍</i>
+          </div>
+          <h2>Filtrar Usuarios</h2>
+        </div>
+        
+        <div class="search-box">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="Buscar por nombre de usuario..."
+            class="styled-input"
+          >
+        </div>
+      </section>
+
+      <section class="card p-0 overflow-hidden">
+        <div class="card-header p-4">
+          <h3>Usuarios Registrados</h3>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Propietario</th>
+                <th>Descripción</th>
+                <th>Límite</th>
+                <th>Estado</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in filteredUsers" :key="user.id">
+                <td class="font-weight-bold">{{ user.username }}</td>
+                <td>{{ user.owner }}</td>
+                <td class="text-muted">{{ user.description }}</td>
+                <td>{{ user.connectionLimit }}</td>
+                <td>
+                  <span :class="['status-badge', user.status === 'Activo' ? 'success' : 'error']">
+                    {{ user.status }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <button @click="openEditModal(user)" class="btn-action">
+                    Editar
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="filteredUsers.length === 0">
+                <td colspan="6" class="text-center py-5">No se encontraron usuarios</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <Modal :show="isModalVisible" @close="closeEditModal">
+      <template v-slot:header>
+        <h3>Editando Usuario: {{ editingUser.username }}</h3>
+      </template>
+      
+      <template v-slot:body>
+        <form @submit.prevent="saveChanges">
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Descripción del Usuario</label>
+            <textarea 
+              v-model="editedDescription" 
+              class="styled-input w-100" 
+              rows="4"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="font-weight-bold">Límite de Conexiones</label>
+            <input 
+              type="number" 
+              v-model.number="editedConnectionLimit" 
+              class="styled-input w-100"
+            >
+          </div>
+        </form>
+      </template>
+      
+      <template v-slot:footer>
+        <button @click="closeEditModal" class="btn-cancel">Cancelar</button>
+        <button @click="saveChanges" class="btn-verify">Guardar Cambios</button>
+      </template>
+    </Modal>
   </div>
-
-  <Modal :show="isModalVisible" @close="closeEditModal">
-    <template v-slot:header>
-      <h3>Editando Usuario: {{ editingUser.username }}</h3>
-    </template>
-    
-    <template v-slot:body>
-      <form @submit.prevent="saveChanges">
-        <div class="form-group">
-          <label for="description">Descripción del Usuario</label>
-          <textarea id="description" v-model="editedDescription" rows="4"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="connectionLimit">Límite de Conexiones</label>
-          <input type="number" id="connectionLimit" v-model.number="editedConnectionLimit">
-        </div>
-      </form>
-    </template>
-    
-    <template v-slot:footer>
-      <button @click="closeEditModal" class="button-secondary">Cancelar</button>
-      <button @click="saveChanges" class="button-primary">Guardar Cambios</button>
-    </template>
-  </Modal>
-
 </template>
 
 <script>
@@ -75,9 +107,7 @@ import apiService from '../apiService.js';
 
 export default {
   name: 'UserList',
-  components: { 
-    Modal 
-  },
+  components: { Modal },
   data() {
     return {
       searchQuery: '', 
@@ -90,9 +120,7 @@ export default {
   },
   computed: {
     filteredUsers() {
-      if (!this.searchQuery) {
-        return this.users;
-      }
+      if (!this.searchQuery) return this.users;
       return this.users.filter(user => {
         return user.username.toLowerCase().includes(this.searchQuery.toLowerCase());
       });
@@ -130,97 +158,146 @@ export default {
   }
 };
 </script>
+
 <style scoped>
-.user-list-container {
-  font-family: sans-serif;
+/* Estética idéntica a ConnectionSettings.vue */
+.settings-page {
   max-width: 1000px;
   margin: 40px auto;
-  padding: 20px;
+  padding: 0 20px;
+  font-family: 'Inter', sans-serif;
+  color: #2d3748;
 }
-/* Estilos para la barra de búsqueda */
-.search-bar {
+
+.settings-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.settings-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 8px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+  border: 1px solid #edf2f7;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
 }
-.search-bar input {
-  width: 100%;
-  padding: 10px 15px;
-  font-size: 16px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+
+.card-header h2, .card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
 }
-.user-table {
-  background-color: #ffffff;
-  padding: 20px;
+
+.icon-circle {
+  width: 36px;
+  height: 36px;
+  background: #ebf8ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-box {
+  display: flex;
+  gap: 12px;
+}
+
+.styled-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #edf2f7;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  font-size: 1rem;
+  transition: all 0.2s;
 }
-table {
+
+.styled-input:focus {
+  outline: none;
+  border-color: #4299e1;
+}
+
+/* Tabla personalizada con estilo moderno */
+.custom-table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
+
+.custom-table th {
+  background-color: #f7fafc;
+  padding: 15px;
   text-align: left;
-  padding: 12px 15px;
-  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
-th {
-  background-color: #f8f9fa;
+
+.custom-table td {
+  padding: 15px;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.95rem;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
 }
-.status {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-}
-.status-active {
-  background-color: #e2f5ea;
-  color: #34a853;
-}
-.status-inactive {
-  background-color: #f8e1e1;
-  color: #ea4335;
-}
-.edit-button {
-  padding: 5px 10px;
-  background-color: #007bff;
-  color: white;
+
+.status-badge.success { background: #f0fff4; color: #2f855a; }
+.status-badge.error { background: #fff5f5; color: #c53030; }
+
+.btn-action {
+  padding: 6px 16px;
+  background: #ebf8ff;
+  color: #3182ce;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
 }
-.edit-button:hover {
-  background-color: #0056b3;
+
+.btn-verify {
+  background: #4299e1;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
 }
-/* NUEVOS ESTILOS PARA EL FORMULARIO Y BOTONES */
-.form-group { 
-  margin-bottom: 15px; 
+
+.btn-cancel {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 10px;
 }
-.form-group label { 
-  display: block; 
-  margin-bottom: 5px; 
-  font-weight: bold; 
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
 }
-.form-group textarea { 
-  width: 100%; 
-  padding: 8px; 
-  border: 1px solid #ccc; 
-  border-radius: 4px; 
-  font-size: 14px; 
-}
-.button-secondary { 
-  padding: 10px 15px; 
-  border: 1px solid #ccc; 
-  background-color: #f8f9fa; 
-  border-radius: 5px; 
-  cursor: pointer; 
-  margin-right: 10px; 
-}
-.button-primary { 
-  padding: 10px 15px; 
-  border: none; 
-  background-color: #007bff; 
-  color: white; 
-  border-radius: 5px; 
-  cursor: pointer; }
 </style>

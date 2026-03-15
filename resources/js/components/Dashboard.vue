@@ -1,63 +1,79 @@
 <template>
-  <div class="dashboard-container">
-    <h1 class="mb-4 text-secondary">Dashboard General</h1>
+  <div class="settings-page">
+    <header class="settings-header">
+      <h1>Dashboard General</h1>
+      <p>Visualización en tiempo real del estado de las conexiones y métricas de uso.</p>
+    </header>
 
-    <div class="row mb-4">
-      <div class="col-md-4">
-        <div class="card kpi-card border-primary mb-3">
-          <div class="card-body text-primary">
-            <h5 class="card-title text-uppercase font-weight-bold">Conexiones Activas</h5>
-            <p class="card-text display-4">{{ kpis.activeConnections }}</p>
+    <main class="settings-content">
+      <div class="stats-grid mb-4">
+        <section class="card kpi-card border-blue">
+          <div class="card-header-modern">
+            <div class="icon-circle bg-blue">
+              <i class="icon">🔌</i>
+            </div>
+            <h3>Conexiones Activas</h3>
           </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card kpi-card border-success mb-3">
-          <div class="card-body text-success">
-            <h5 class="card-title text-uppercase font-weight-bold">Total Usuarios</h5>
-            <p class="card-text display-4">{{ kpis.totalUsers }}</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card kpi-card border-warning mb-3">
-          <div class="card-body text-warning">
-            <h5 class="card-title text-uppercase font-weight-bold">Media Diaria (Mes)</h5>
-            <p class="card-text display-4">{{ kpis.alerts }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+          <div class="kpi-value text-blue">{{ kpis.activeConnections }}</div>
+        </section>
 
-    <div class="row">
-      <div class="col-md-8 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-header bg-white font-weight-bold">
-            <i class="bi bi-graph-up"></i> Tendencia de Conexiones (30 días)
+        <section class="card kpi-card border-green">
+          <div class="card-header-modern">
+            <div class="icon-circle bg-green">
+              <i class="icon">👥</i>
+            </div>
+            <h3>Total Usuarios</h3>
           </div>
-          <div class="card-body">
-            <div class="chart-container">
+          <div class="kpi-value text-green">{{ kpis.totalUsers }}</div>
+        </section>
+
+        <section class="card kpi-card border-orange">
+          <div class="card-header-modern">
+            <div class="icon-circle bg-orange">
+              <i class="icon">📊</i>
+            </div>
+            <h3>Media Diaria (Mes)</h3>
+          </div>
+          <div class="kpi-value text-orange">{{ kpis.alerts }}</div>
+        </section>
+      </div>
+
+      <div class="row">
+        <div class="col-12 mb-4">
+          <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+              <div class="card-header-modern justify-content-start mb-4">
+                <div class="icon-circle bg-blue-light">
+                  <i class="bi bi-graph-up text-blue"></i>
+                </div>
+                <h3>Tendencia de Conexiones (30 días)</h3>
+              </div>
+              
+              <div class="chart-container">
                 <canvas id="trendsChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <br>
+        <div class="col-12 mb-4">
+          <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+              <div class="card-header-modern justify-content-start mb-4">
+                <div class="icon-circle bg-orange-light">
+                  <i class="bi bi-hdd-network text-orange"></i>
+                </div>
+                <h3>Top 5 IPs de Origen</h3>
+              </div>
 
-      <div class="col-md-4 mb-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-header bg-white font-weight-bold">
-            <i class="bi bi-hdd-network"></i> Top 5 IPs de Origen
-          </div>
-          <div class="card-body">
-            <div class="chart-container">
+              <div class="chart-container">
                 <canvas id="ipsChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -69,7 +85,6 @@ export default {
   name: 'Dashboard',
   data() {
     return {
-      // Inicializamos con null o '...' para diferenciar carga de error
       kpis: { activeConnections: 0, totalUsers: '...', alerts: 0 },
       loading: true,
       trendsChartInstance: null,
@@ -82,7 +97,6 @@ export default {
   methods: {
     async loadDashboardData() {
       try {
-        // 1. Intentamos recuperar el último total conocido de la memoria local
         const lastKnownTotal = localStorage.getItem('last_total_users');
         if (lastKnownTotal) {
             this.kpis.totalUsers = lastKnownTotal;
@@ -94,18 +108,13 @@ export default {
             const data = response.data;
             const newTotal = data.kpis.totalUsers;
 
-            // 2. REGLA DE ESTABILIDAD: 
-            // Si el nuevo total es 0 pero la API ya nos había dado un número antes (ej. 212),
-            // ignoramos el 0 y mantenemos el valor anterior.
             if (newTotal > 0) {
                 this.kpis.totalUsers = newTotal;
-                localStorage.setItem('last_total_users', newTotal); // Guardamos para la próxima recarga
+                localStorage.setItem('last_total_users', newTotal); 
             } else if (this.kpis.totalUsers === '...') {
-                // Si es la primera vez y falla, ponemos 0
                 this.kpis.totalUsers = 0;
             }
 
-            // Actualizamos el resto de KPIs que no fallan
             this.kpis.activeConnections = data.kpis.activeConnections;
             this.kpis.alerts = data.kpis.alerts;
             
@@ -121,38 +130,38 @@ export default {
     },
 
     renderCharts(charts) {
-      // 1. Gráfica de Tendencias
-      const ctx1 = document.getElementById('trendsChart');
-      if (ctx1 && charts.trends) {
-          if (this.trendsChartInstance) this.trendsChartInstance.destroy();
-          
-          this.trendsChartInstance = new Chart(ctx1, {
-            type: 'line',
-            data: {
-              labels: charts.trends.labels,
-              datasets: [{
-                label: 'Conexiones Diarias',
-                data: charts.trends.data,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                tension: 0.3,
-                fill: true
-              }]
-            },
-            options: { 
-              responsive: true, 
-              maintainAspectRatio: false,
-              animation: { duration: 1000 } // Añadimos animación suave
-            }
-          });
+      const canvas1 = document.getElementById('trendsChart');
+      if (canvas1 && charts.trends) {
+        const existingChart1 = Chart.getChart(canvas1); 
+        if (existingChart1) existingChart1.destroy();
+      
+        this.trendsChartInstance = new Chart(canvas1, {
+          type: 'line',
+          data: {
+            labels: charts.trends.labels,
+            datasets: [{
+              label: 'Conexiones Diarias',
+              data: charts.trends.data,
+              borderColor: '#0d6efd',
+              backgroundColor: 'rgba(13, 110, 253, 0.1)',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            animation: { duration: 1000 }
+          }
+        });
       }
 
-      // 2. Gráfica de Top IPs
-      const ctx2 = document.getElementById('ipsChart');
-      if (ctx2 && charts.topIps) {
-          if (this.ipsChartInstance) this.ipsChartInstance.destroy();
+      const canvas2 = document.getElementById('ipsChart');
+      if (canvas2 && charts.topIps) {
+          const existingChart2 = Chart.getChart(canvas2);
+          if (existingChart2) existingChart2.destroy();
 
-          this.ipsChartInstance = new Chart(ctx2, {
+          this.ipsChartInstance = new Chart(canvas2, {
             type: 'bar',
             data: {
               labels: charts.topIps.labels,
@@ -169,25 +178,115 @@ export default {
                 indexAxis: 'y'
             }
           });
-      }
+        }
     }
   }
 };
 </script>
 
 <style scoped>
-.dashboard-container {
-  padding: 20px;
-  background-color: #f8f9fa;
-  min-height: 100vh;
+/* Contenedor Unificado */
+.settings-page {
+  max-width: 1400px;
+  margin: 30px auto;
+  padding: 0 20px;
+  font-family: 'Inter', sans-serif;
+  color: #2d3748;
 }
+
+.settings-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.settings-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+/* KPIs Modernos */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
 .kpi-card {
-    border-width: 0 0 0 4px; /* Borde de color solo a la izquierda */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  padding: 24px;
+  border-left: 5px solid #edf2f7;
+  text-align: center;
 }
+
+.border-blue { border-left-color: #4299e1; }
+.border-green { border-left-color: #48bb78; }
+.border-orange { border-left-color: #ed8936; }
+
+/* Estilo de Encabezado Moderno (Usado en KPIs y ahora en Gráficas) */
+.card-header-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Alineación central para KPIs, izquierda para gráficas largas */
+.justify-content-start { justify-content: flex-start; }
+.justify-content-center { justify-content: center; }
+
+.card-header-modern h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #718096;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.icon-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Colores de Círculos */
+.bg-blue { background: #ebf8ff; color: #4299e1; }
+.bg-green { background: #f0fff4; color: #48bb78; }
+.bg-orange { background: #fffaf0; color: #ed8936; }
+.bg-blue-light { background: #e6f6ff; }
+.bg-orange-light { background: #fff5eb; }
+
+/* Colores de Iconos Bootstrap */
+.text-blue { color: #3182ce; }
+.text-orange { color: #dd6b20; }
+
+.kpi-value {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #1a202c;
+  margin-top: 10px;
+}
+
+/* Rejilla de Gráficas */
+.row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+.col-12 { flex: 0 0 100%; max-width: 100%; padding: 0 15px; }
+
 .chart-container {
-    position: relative;
-    height: 300px;
-    width: 100%;
+  position: relative;
+  height: 350px;
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .stats-grid { grid-template-columns: 1fr; }
 }
 </style>

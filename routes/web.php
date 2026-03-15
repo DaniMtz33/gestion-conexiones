@@ -16,13 +16,12 @@ Route::any('/api/{any}', function ($any) {
     $apiUrl = rtrim($apiBaseUrl, '/') . '/' . $any;
 
     try {
-        // Creamos una petición "limpia" en lugar de reenviar todas las cabeceras.
-        // Esto evita enviar cabeceras como 'Host', 'X-XSRF-TOKEN', etc., que pueden confundir a la API.
         $response = Http::withOptions(['http_errors' => false])
-                        ->acceptJson() // Establece explícitamente 'Accept: application/json'
+                        // Seteamos el cuerpo y el Content-Type explícitamente
+                        ->withBody($request->getContent(), 'application/json')
+                        ->acceptJson()
                         ->send($request->method(), $apiUrl, [
                             'query' => $request->query(),
-                            'body' => $request->getContent(),
                         ]);
 
         if ($response->failed()) {
@@ -33,11 +32,13 @@ Route::any('/api/{any}', function ($any) {
             ]);
         }
 
-        return response($response->body(), $response->status(), $response->headers());
+        // Retornamos la respuesta limpia
+        return response($response->body(), $response->status())
+                ->header('Content-Type', 'application/json');
 
-    } catch (ConnectionException $e) {
-        Log::error('API Proxy Connection Failed:', ['error' => $e->getMessage()]);
-        return response()->json(['message' => 'Error de conexión del proxy a la API.'], 502);
+    } catch (\Exception $e) {
+        Log::error('API Proxy Exception:', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Error en el proxy'], 500);
     }
 })->where('any', '.*');
 
