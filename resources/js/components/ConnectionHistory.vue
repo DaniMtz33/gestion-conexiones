@@ -25,8 +25,8 @@
           <div class="date-input-wrapper">
             <input 
               type="text" 
-              v-model="dateRange" 
-              placeholder="Rango (DD/MM/YYYY)" 
+              v-model="singleDate" 
+              placeholder="Fecha (DD/MM/YYYY)" 
               class="styled-input"
               @change="fetchHistory"
             >
@@ -53,7 +53,12 @@
                   <span v-else-if="sortOrder === 'desc'" class="sort-icon">▼</span>
                   <span v-else class="sort-icon neutral">⇵</span>
                 </th>
-                <th>IP de Origen</th>
+                <th @click="sortIps" class="sortable-header">
+                  IP de Origen
+                  <span v-if="sortOrderIp === 'asc'" class="sort-icon">▲</span>
+                  <span v-else-if="sortOrderIp === 'desc'" class="sort-icon">▼</span>
+                  <span v-else class="sort-icon neutral">⇵</span>
+                </th>
                 <th>Fecha y Hora</th>
                 <th>Resultado</th>
                 <th>Duración</th> 
@@ -62,7 +67,7 @@
             </thead>
             <tbody>
               <tr v-if="connections.length === 0">
-                 <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros en este periodo</td>
+                 <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros para la fecha seleccionada</td>
               </tr>
               <tr v-for="conn in connections" :key="conn.id">
                 <td class="font-weight-bold text-dark">{{ conn.user }}</td>
@@ -85,7 +90,6 @@
 </template>
 
 <script>
-/* LÓGICA CONSERVADA INTACTA */
 import apiService from '../apiService';
 
 export default {
@@ -94,8 +98,9 @@ export default {
     return {
       connections: [],
       searchQuery: '',
-      dateRange: '',
-      sortOrder: null 
+      singleDate: '', 
+      sortOrder: null,
+      sortOrderIp: null // Estado de orden para la IP
     };
   },
   mounted() {
@@ -106,27 +111,44 @@ export default {
       try {
         const params = {
             search: this.searchQuery,
-            dateRange: this.dateRange
+            startDate: this.singleDate, 
+            endDate: this.singleDate    
         };
         const response = await apiService.getData('GET_HISTORY', params);
-        this.connections = response.data;
+        
+        if (this.singleDate && this.singleDate.trim() !== "") {
+            this.connections = response.data.filter(conn => {
+                return conn.timestamp && conn.timestamp.startsWith(this.singleDate);
+            });
+        } else {
+            this.connections = response.data;
+        }
       } catch (error) {
         console.error("Hubo un error al obtener el historial:", error);
       }
     },
 
     sortUsers() {
+      this.sortOrderIp = null; // Resetear el otro orden
       this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
-
       this.connections.sort((a, b) => {
         const userA = (a.user || '').toLowerCase();
         const userB = (b.user || '').toLowerCase();
-        
-        if (this.sortOrder === 'asc') {
-          return userA.localeCompare(userB);
-        } else {
-          return userB.localeCompare(userA);
-        }
+        return this.sortOrder === 'asc' ? userA.localeCompare(userB) : userB.localeCompare(userA);
+      });
+    },
+
+    // Nuevo método para ordenar IPs
+    sortIps() {
+      this.sortOrder = null; // Resetear el otro orden
+      this.sortOrderIp = this.sortOrderIp === 'asc' ? 'desc' : 'asc';
+      this.connections.sort((a, b) => {
+        const ipA = a.ip || '';
+        const ipB = b.ip || '';
+        // Usamos numeric: true para que ordene IPs correctamente (ej: .10 después de .2)
+        return this.sortOrderIp === 'asc' 
+          ? ipA.localeCompare(ipB, undefined, { numeric: true }) 
+          : ipB.localeCompare(ipA, undefined, { numeric: true });
       });
     },
 
@@ -143,176 +165,35 @@ export default {
 </script>
 
 <style scoped>
-/* Unificación con ConnectionSettings.vue */
-.settings-page {
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 0 20px;
-  font-family: 'Inter', -apple-system, sans-serif;
-  color: #2d3748;
-}
-
-.settings-header {
-  margin-bottom: 30px;
-  text-align: center;
-}
-
-.settings-header h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #1a202c;
-  margin-bottom: 8px;
-}
-
-.settings-header p {
-  color: #718096;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #edf2f7;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.card-header h2, .card-header h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.icon-circle {
-  width: 36px;
-  height: 36px;
-  background: #ebf8ff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-box {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.styled-input {
-  flex: 1;
-  padding: 12px 16px;
-  border: 2px solid #edf2f7;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.styled-input:focus {
-  outline: none;
-  border-color: #4299e1;
-}
-
-.date-input-wrapper {
-  max-width: 220px;
-}
-
-.btn-verify {
-  background: #4299e1;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.records-count {
-  background: #f7fafc;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  color: #718096;
-  font-weight: 500;
-}
-
-/* Tabla Estilizada */
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.custom-table th {
-  background-color: #f7fafc;
-  padding: 15px;
-  text-align: left;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #718096;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.sortable-header {
-  cursor: pointer;
-  user-select: none;
-}
-
-.sortable-header:hover {
-  color: #4299e1;
-}
-
-.sort-icon {
-  margin-left: 5px;
-  font-size: 0.8rem;
-}
-
-.sort-icon.neutral {
-  color: #cbd5e0;
-}
-
-.custom-table td {
-  padding: 15px;
-  border-bottom: 1px solid #edf2f7;
-  font-size: 0.95rem;
-}
-
-.text-mono {
-  font-family: 'Courier New', Courier, monospace;
-  font-weight: 600;
-}
-
-/* Badges de estado modernos */
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  display: inline-block;
-}
-
+/* Se mantienen los mismos estilos */
+.settings-page { max-width: 1200px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', -apple-system, sans-serif; color: #2d3748; }
+.settings-header { margin-bottom: 30px; text-align: center; }
+.settings-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a202c; margin-bottom: 8px; }
+.settings-header p { color: #718096; }
+.card { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #edf2f7; }
+.card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.card-header h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+.icon-circle { width: 36px; height: 36px; background: #ebf8ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.search-box { display: flex; gap: 12px; align-items: center; }
+.styled-input { flex: 1; padding: 12px 16px; border: 2px solid #edf2f7; border-radius: 8px; font-size: 1rem; transition: all 0.2s; box-sizing: border-box; }
+.styled-input:focus { outline: none; border-color: #4299e1; }
+.date-input-wrapper { max-width: 220px; }
+.btn-verify { background: #4299e1; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.records-count { background: #f7fafc; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; color: #718096; font-weight: 500; }
+.custom-table { width: 100%; border-collapse: collapse; }
+.custom-table th { background-color: #f7fafc; padding: 15px; text-align: left; font-size: 0.85rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.025em; }
+.sortable-header { cursor: pointer; user-select: none; }
+.sortable-header:hover { color: #4299e1; }
+.sort-icon { margin-left: 5px; font-size: 0.8rem; }
+.sort-icon.neutral { color: #cbd5e0; }
+.custom-table td { padding: 15px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem; }
+.text-mono { font-family: 'Courier New', Courier, monospace; font-weight: 600; }
+.status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
 .status-badge.success { background: #f0fff4; color: #2f855a; }
 .status-badge.error { background: #fff5f5; color: #c53030; }
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-}
-
+.table-responsive { width: 100%; overflow-x: auto; }
 @media (max-width: 768px) {
-  .search-box {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .date-input-wrapper {
-    max-width: 100%;
-  }
+  .search-box { flex-direction: column; align-items: stretch; }
+  .date-input-wrapper { max-width: 100%; }
 }
 </style>
