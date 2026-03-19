@@ -196,4 +196,5 @@ export default {
   .search-box { flex-direction: column; align-items: stretch; }
   .date-input-wrapper { max-width: 100%; }
 }
+
 </style>
