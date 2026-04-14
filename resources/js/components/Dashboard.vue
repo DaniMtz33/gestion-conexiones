@@ -63,7 +63,7 @@
                 <div class="icon-circle bg-orange-light">
                   <i class="bi bi-hdd-network text-orange"></i>
                 </div>
-                <h3>Top 5 IPs de Origen</h3>
+                <h3>Top 5 IPs de Origen Mensual</h3>
               </div>
 
               <div class="chart-container">

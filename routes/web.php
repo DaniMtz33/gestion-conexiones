@@ -16,7 +16,8 @@ Route::any('/api/{any}', function ($any) {
     $apiUrl = rtrim($apiBaseUrl, '/') . '/' . $any;
 
     try {
-        $response = Http::withOptions(['http_errors' => false])
+        $response = Http::timeout(60) // <--- Agrega esta línea aquí
+                        ->withOptions(['http_errors' => false])
                         // Seteamos el cuerpo y el Content-Type explícitamente
                         ->withBody($request->getContent(), 'application/json')
                         ->acceptJson()
@@ -38,7 +39,7 @@ Route::any('/api/{any}', function ($any) {
 
     } catch (\Exception $e) {
         Log::error('API Proxy Exception:', ['error' => $e->getMessage()]);
-        return response()->json(['message' => 'Error en el proxy'], 500);
+        return response()->json(['message' => $e->getMessage()], 500);
     }
 })->where('any', '.*');
 

@@ -319,14 +319,14 @@ export default {
   margin-top: 5px;
 }
 
-/* --- SOLUCIÓN AL DESBORDE --- */
+
 .styled-input {
   width: 100%;
   padding: 10px 14px;
   border: 2px solid #edf2f7;
   border-radius: 8px;
   font-size: 0.95rem;
-  box-sizing: border-box; /* Asegura que el padding no sume al ancho total */
+  box-sizing: border-box; 
 }
 
 .styled-input:focus {

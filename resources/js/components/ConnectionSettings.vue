@@ -130,7 +130,7 @@ export default {
         const response = await apiService.getData('GET_USERS');
         const users = response.data || [];
         
-        // Buscamos coincidencia por ID o Nombre (Conservando tu lógica)
+        // Buscamos coincidencia por ID o Nombre
         const found = users.find(u => 
           u.username.toLowerCase() === this.targetUser.toLowerCase() || 
           u.name.toLowerCase() === this.targetUser.toLowerCase()
@@ -160,7 +160,7 @@ export default {
 </script>
 
 <style scoped>
-/* Estética Moderna aplicada al contenedor de lógica */
+
 .settings-page {
   max-width: 900px;
   margin: 40px auto;

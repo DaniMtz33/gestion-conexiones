@@ -4,8 +4,10 @@ const BASE_URL = '/api/UNIRPC_CONN';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
+  timeout: 60000, // Tiempo de espera de 60 segundos
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 
@@ -18,15 +20,13 @@ function formatDatePadded(date) {
     return `${day}/${month}/${year}`;
 }
 
-// Obtiene la fecha de hoy
 function getToday() {
     return formatDatePadded(new Date());
 }
 
-// Obtiene la fecha de hace exactamente un mes
-function getLastMonthDate() {
+function getDateMinusDays(days) {
     const d = new Date();
-    d.setMonth(d.getMonth() - 1);
+    d.setDate(d.getDate() - days);
     return formatDatePadded(d);
 }
 
@@ -39,8 +39,7 @@ function dataMapper(option, apiData) {
     }
 
     const usersList = apiData['Usuarios.registrados'] || (Array.isArray(apiData) ? apiData : null);
-    const isHistoryPayload = apiData && typeof apiData.resultados === 'string';
-
+    
     if (usersList && (option === 'GET_USERS' || option === 'GET_DASHBOARD')) {
         return usersList.map((user, index) => ({
             id: index + 1,
@@ -48,13 +47,18 @@ function dataMapper(option, apiData) {
             name: user.nombre_usuario || user._id,
             owner: user.propietario || 'N/A',
             description: user.observaciones || '',
+            limit: user.umbral_maximo || '0', 
             status: user.activo === 'SI' ? 'Activo' : 'Inactivo',
             ip_address: Array.isArray(user.ip_autorizada) ? user.ip_autorizada.flat().join(', ') : (user.ip_autorizada || 'N/A'),
             u2version: user.u2version || null
         }));
     }
 
-    if (isHistoryPayload && (option === 'GET_HISTORY' || option === 'GET_DASHBOARD')) {
+    if (option === 'GET_DASHBOARD_HISTORY') {
+        return apiData.resultados || "";
+    }
+
+    if (apiData.resultados && option === 'GET_HISTORY') {
         let rawString = apiData.resultados;
         if (!rawString || rawString === "" || rawString === "SIN RESULTADOS") return [];
         const rows = rawString.split('ý'); 
@@ -73,62 +77,89 @@ function dataMapper(option, apiData) {
     return [];
 }
 
-// --- PROCESAMIENTO PARA EL DASHBOARD ---
+// --- PROCESAMIENTO PARA EL DASHBOARD CORREGIDO ---
 
-function processDashboardData(users, history) {
-    const totalUsers = users.length;
-    
-    const activeConnections = history.filter(h => 
-        h.status && h.status.toUpperCase().includes('EXITOSO')
-    ).length;
-
-    const labels = [];
-    const trendsMap = {};
+function processDashboardData(users, historyRaw, daysRequested) {
+    const dailyStats = {};
+    const ipCounts = {};
     const today = new Date();
 
-    // Generar etiquetas para los últimos 30 días (Rango móvil)
-    for (let i = 29; i >= 0; i--) {
+    const timeBlocks = typeof historyRaw === 'string' ? historyRaw.split('þ') : [];
+    
+    timeBlocks.forEach(block => {
+        if (!block.trim()) return;
+
+        // 1. Extraer el número de servidor (ej: 21246 de 21246*86101...)
+        const serverDayMatch = block.match(/^(\d{5})/);
+        if (!serverDayMatch) return;
+        
+        const serverDayNum = serverDayMatch[1];
+        const entries = block.split('ý');
+        const userEntries = entries.filter(e => e.includes('ü'));
+
+        // 2. Convertir el número de servidor a una fecha DD/MM/YYYY
+        const refDayNum = 21247;
+        const refDate = new Date(2026, 2, 3); // 3 de Marzo de 2026
+        const diffDays = parseInt(serverDayNum) - refDayNum;
+        
+        const actualDate = new Date(refDate);
+        actualDate.setDate(refDate.getDate() + diffDays);
+        const dateStr = formatDatePadded(actualDate);
+
+        // 3. Agrupar datos por esa fecha calculada
+        if (!dailyStats[dateStr]) {
+            dailyStats[dateStr] = { totalConnections: 0, snapshotCount: 0 };
+        }
+        dailyStats[dateStr].totalConnections += userEntries.length;
+        dailyStats[dateStr].snapshotCount += 1;
+
+        // 4. Conteo de IPs para el Top 5
+        userEntries.forEach(entry => {
+            const parts = entry.split('ü');
+            const ip = parts[2] ? parts[2].trim() : null;
+            if (ip && ip !== 'N/A' && ip !== "") {
+                ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+            }
+        });
+    });
+
+    // 5. Generar Labels y Data REDONDEADA
+    const labels = [];
+    const chartData = [];
+    for (let i = daysRequested - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
         const dayStr = formatDatePadded(d);
+        
         labels.push(dayStr);
-        trendsMap[dayStr] = 0;
+        const stats = dailyStats[dayStr];
+        // Redondeo de los puntos de la gráfica
+        chartData.push(stats ? Math.round(stats.totalConnections / stats.snapshotCount) : 0);
     }
 
-    let totalInRange = 0;
-    history.forEach(h => {
-        let datePart = h.timestamp ? h.timestamp.split(' ')[0] : "";
-        if (datePart && datePart.includes('/')) {
-            const dp = datePart.split('/');
-            const norm = `${dp[0].padStart(2, '0')}/${dp[1].padStart(2, '0')}/${dp[2]}`;
-            if (Object.prototype.hasOwnProperty.call(trendsMap, norm)) {
-                trendsMap[norm]++;
-                totalInRange++;
-            }
-        }
-    });
+    // 6. Top 5 IPs
+    const sortedIps = Object.entries(ipCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    const ipMap = {};
-    history.forEach(h => {
-        if (h.ip && h.ip !== 'N/A') {
-            const ip = h.ip.trim();
-            ipMap[ip] = (ipMap[ip] || 0) + 1;
-        }
-    });
+    // 7. Conexiones actuales (del bloque más reciente)
+    const activeConnections = (timeBlocks[0] || "").split('ý').filter(e => e.includes('ü')).length;
 
-    const sortedIps = Object.entries(ipMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    // 8. Media global REDONDEADA
+    const validValues = chartData.filter(v => v > 0);
+    const globalAverage = validValues.length > 0 
+        ? Math.round(validValues.reduce((a, b) => a + b, 0) / validValues.length) 
+        : 0;
 
     return {
         kpis: {
-            totalUsers,
+            totalUsers: users.length,
             activeConnections,
-            alerts: (totalInRange / 30).toFixed(2) // Media diaria sobre 30 días
+            alerts: globalAverage
         },
         charts: {
-            trends: { labels, data: labels.map(l => trendsMap[l]) },
-            topIps: {
-                labels: sortedIps.map(i => i[0]),
-                data: sortedIps.map(i => i[1])
+            trends: { labels, data: chartData },
+            topIps: { 
+                labels: sortedIps.map(i => i[0]), 
+                data: sortedIps.map(i => i[1]) 
             }
         }
     };
@@ -137,32 +168,38 @@ function processDashboardData(users, history) {
 export default {
   async getData(p_option, p_parameters = {}) {
     try {
+        if (p_option === 'SAVE_USER') {
+            const mappedParams = {
+                "usuario": p_parameters.usuario || "",
+                "propietario": p_parameters.propietario || "",
+                "descripcion": p_parameters.descripcion || "",
+                "limite": String(p_parameters.limite || "")
+            };
+            let response = await apiClient.post('/subroutine/GUARDAR.DATOS.USUARIO', mappedParams);
+            return { data: response.data };
+        }
+
         if (p_option === 'GET_HISTORY') {
             const mappedParams = {
                 "usuario": p_parameters.search || "", 
                 "fecha.ini": p_parameters.startDate || "", 
-                "fecha.fin": p_parameters.endDate || "", // Ahora enviamos el fin del rango
+                "fecha.fin": p_parameters.endDate || "", 
                 "ip": "", 
                 "estado": ""
             };
-
             let response = await apiClient.post('/subroutine/OBTENER.CONEXIONES', mappedParams);
             return { data: dataMapper(p_option, response.data) };
         }
 
         if (p_option === 'GET_DASHBOARD') {
-            // Definimos el rango de un mes para la API
+            const days = p_parameters.days || 30;
             const fechaFin = getToday();
-            const fechaIni = getLastMonthDate();
+            const fechaIni = getDateMinusDays(days);
 
             const results = await Promise.allSettled([
                 apiClient.get('/Usuarios.registrados'),
                 apiClient.post('/subroutine/OBTENER.CONEXIONES', {
-                    "usuario": "", 
-                    "fecha.ini": fechaIni, 
-                    "fecha.fin": fechaFin, 
-                    "ip": "", 
-                    "estado": ""
+                    "usuario": "", "fecha.ini": fechaIni, "fecha.fin": fechaFin, "ip": "", "estado": ""
                 })
             ]);
 
@@ -170,9 +207,9 @@ export default {
             const historyRaw = results[1].status === 'fulfilled' ? results[1].value.data : { resultados: "" };
 
             const usersClean = dataMapper('GET_USERS', usersRaw);
-            const historyClean = dataMapper('GET_HISTORY', historyRaw);
+            const historyRawString = dataMapper('GET_DASHBOARD_HISTORY', historyRaw);
             
-            return { data: processDashboardData(usersClean, historyClean) };
+            return { data: processDashboardData(usersClean, historyRawString, days) };
         }
 
         const isUsers = p_option === 'GET_USERS';
