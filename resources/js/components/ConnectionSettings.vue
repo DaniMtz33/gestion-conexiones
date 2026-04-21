@@ -135,7 +135,7 @@ export default {
           u.username.toLowerCase() === this.targetUser.toLowerCase() || 
           u.name.toLowerCase() === this.targetUser.toLowerCase()
         );
-
+        
         if (found) {
           this.userFound = true;
           this.validatedUserData = found;

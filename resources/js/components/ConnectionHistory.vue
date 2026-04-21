@@ -67,7 +67,7 @@
             </thead>
             <tbody>
               <tr v-if="connections.length === 0">
-                 <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros para la fecha seleccionada</td>
+                <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros para la fecha seleccionada</td>
               </tr>
               <tr v-for="conn in connections" :key="conn.id">
                 <td class="font-weight-bold text-dark">{{ conn.user }}</td>
@@ -145,7 +145,6 @@ export default {
       this.connections.sort((a, b) => {
         const ipA = a.ip || '';
         const ipB = b.ip || '';
-       
         return this.sortOrderIp === 'asc' 
           ? ipA.localeCompare(ipB, undefined, { numeric: true }) 
           : ipB.localeCompare(ipA, undefined, { numeric: true });

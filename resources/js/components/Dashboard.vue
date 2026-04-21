@@ -46,7 +46,7 @@
                 <div class="icon-circle bg-blue-light">
                   <i class="bi bi-graph-up text-blue"></i>
                 </div>
-                <h3>Tendencia de Conexiones (30 días)</h3>
+                <h3>Tendencia de Conexiones (15 días)</h3>
               </div>
               
               <div class="chart-container">
@@ -63,7 +63,7 @@
                 <div class="icon-circle bg-orange-light">
                   <i class="bi bi-hdd-network text-orange"></i>
                 </div>
-                <h3>Top 5 IPs de Origen Mensual</h3>
+                <h3>Top 5 IPs de Origen Quincenal</h3>
               </div>
 
               <div class="chart-container">

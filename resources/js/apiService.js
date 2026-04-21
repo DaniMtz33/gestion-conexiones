@@ -3,12 +3,12 @@ import axios from 'axios';
 const BASE_URL = '/api/UNIRPC_CONN';
 
 const apiClient = axios.create({
-  baseURL: BASE_URL,
+baseURL: BASE_URL,
   timeout: 60000, // Tiempo de espera de 60 segundos
-  headers: {
+headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
-  }
+}
 });
 
 // --- HELPERS DE FECHA ---
@@ -166,7 +166,7 @@ function processDashboardData(users, historyRaw, daysRequested) {
 }
 
 export default {
-  async getData(p_option, p_parameters = {}) {
+async getData(p_option, p_parameters = {}) {
     try {
         if (p_option === 'SAVE_USER') {
             const mappedParams = {
@@ -192,14 +192,18 @@ export default {
         }
 
         if (p_option === 'GET_DASHBOARD') {
-            const days = p_parameters.days || 30;
+            const days = p_parameters.days || 15;
             const fechaFin = getToday();
             const fechaIni = getDateMinusDays(days);
 
             const results = await Promise.allSettled([
                 apiClient.get('/Usuarios.registrados'),
                 apiClient.post('/subroutine/OBTENER.CONEXIONES', {
-                    "usuario": "", "fecha.ini": fechaIni, "fecha.fin": fechaFin, "ip": "", "estado": ""
+                    "usuario": "",
+                    "fecha.ini": fechaIni, 
+                    "fecha.fin": fechaFin, 
+                    "ip": "", 
+                    "estado": ""
                 })
             ]);
 
@@ -231,5 +235,5 @@ export default {
         }
         return { data: [] };
     }
-  }
+}
 };
