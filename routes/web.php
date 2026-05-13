@@ -47,4 +47,4 @@ Route::any('/api/{any}', function ($any) {
 // --- RUTA CATCH-ALL PARA VUE ROUTER ---
 Route::get('/{any}', function () {
     return view('welcome');
-})->where('any', '^(?!api\/).*$');
+})->where('any', '.*');

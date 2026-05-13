@@ -1,52 +1,76 @@
-// danimtz33/gestion-conexiones/gestion-conexiones-e3ac4ad0f9092d596fc6b606c7c8f30222771f08/resources/js/router/index.js
-
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Importamos los componentes
+import Login from '../components/Login.vue';
 import Dashboard from '../components/Dashboard.vue';
 import UserList from '../components/UserList.vue';
 import ConnectionHistory from '../components/ConnectionHistory.vue';
 import ConnectionSettings from '../components/ConnectionSettings.vue'; 
 import Administration from '../components/Administration.vue'; 
-import Security from '../components/Security.vue'; // <-- NUEVO
+import Security from '../components/Security.vue';
 
 // Definimos las rutas
 const routes = [
   {
+    path: '/login', // 1. Cambiamos el path para evitar conflicto con Dashboard
+    name: 'Login',
+    component: Login
+  },
+  {
     path: '/',
     name: 'Dashboard',
-    component: Dashboard
+    component: Dashboard,
+    meta: { requiresAuth: true } // 2. Usamos meta para un control global más limpio
   },
   {
     path: '/usuarios',
     name: 'UserList',
-    component: UserList
+    component: UserList,
+    meta: { requiresAuth: true }
   },
   {
     path: '/historial', 
     name: 'ConnectionHistory',
-    component: ConnectionHistory
+    component: ConnectionHistory,
+    meta: { requiresAuth: true }
   },
   {
     path: '/ajustes', 
     name: 'ConnectionSettings',
-    component: ConnectionSettings
+    component: ConnectionSettings,
+    meta: { requiresAuth: true }
   },
   { 
     path: '/administracion', 
     name: 'Administration',
-    component: Administration
+    component: Administration,
+    meta: { requiresAuth: true }
   },
-  { // <-- NUEVA RUTA
+  { 
     path: '/seguridad', 
     name: 'Security',
-    component: Security
+    component: Security,
+    meta: { requiresAuth: true }
   }
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes, 
+});
+
+// 3. Guardia global: Centraliza la protección en un solo lugar
+router.beforeEach((to, from, next) => {
+  // Verificamos la clave 'app_authenticated' que definimos en tu Login.vue
+  const isAuthenticated = localStorage.getItem('app_authenticated') === 'true';
+
+  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
+    next({ name: 'Login' });
+  } else if (to.name === 'Login' && isAuthenticated) {
+    next({ name: 'Dashboard' }); // Si ya está logueado, no dejarlo ir al Login
+  } else {
+    next();
+  }
 });
 
 export default router;

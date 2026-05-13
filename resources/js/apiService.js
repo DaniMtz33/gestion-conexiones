@@ -11,6 +11,18 @@ headers: {
 }
 });
 
+// --- INTERCEPTOR DE AUTENTICACIÓN (NUEVO) ---
+apiClient.interceptors.request.use(config => {
+    const auth = localStorage.getItem('app_authenticated');
+    if (auth === 'true') {
+        // Se añade la cabecera para que el backend reconozca la sesión
+        config.headers.Authorization = `Bearer simulado_token`;
+    }
+    return config;
+}, error => {
+    return Promise.reject(error);
+});
+
 // --- HELPERS DE FECHA ---
 
 function formatDatePadded(date) {
@@ -89,7 +101,6 @@ function processDashboardData(users, historyRaw, daysRequested) {
     timeBlocks.forEach(block => {
         if (!block.trim()) return;
 
-        // 1. Extraer el número de servidor (ej: 21246 de 21246*86101...)
         const serverDayMatch = block.match(/^(\d{5})/);
         if (!serverDayMatch) return;
         
@@ -97,7 +108,6 @@ function processDashboardData(users, historyRaw, daysRequested) {
         const entries = block.split('ý');
         const userEntries = entries.filter(e => e.includes('ü'));
 
-        // 2. Convertir el número de servidor a una fecha DD/MM/YYYY
         const refDayNum = 21247;
         const refDate = new Date(2026, 2, 3); // 3 de Marzo de 2026
         const diffDays = parseInt(serverDayNum) - refDayNum;
@@ -106,14 +116,12 @@ function processDashboardData(users, historyRaw, daysRequested) {
         actualDate.setDate(refDate.getDate() + diffDays);
         const dateStr = formatDatePadded(actualDate);
 
-        // 3. Agrupar datos por esa fecha calculada
         if (!dailyStats[dateStr]) {
             dailyStats[dateStr] = { totalConnections: 0, snapshotCount: 0 };
         }
         dailyStats[dateStr].totalConnections += userEntries.length;
         dailyStats[dateStr].snapshotCount += 1;
 
-        // 4. Conteo de IPs para el Top 5
         userEntries.forEach(entry => {
             const parts = entry.split('ü');
             const ip = parts[2] ? parts[2].trim() : null;
@@ -123,7 +131,6 @@ function processDashboardData(users, historyRaw, daysRequested) {
         });
     });
 
-    // 5. Generar Labels y Data REDONDEADA
     const labels = [];
     const chartData = [];
     for (let i = daysRequested - 1; i >= 0; i--) {
@@ -133,17 +140,12 @@ function processDashboardData(users, historyRaw, daysRequested) {
         
         labels.push(dayStr);
         const stats = dailyStats[dayStr];
-        // Redondeo de los puntos de la gráfica
         chartData.push(stats ? Math.round(stats.totalConnections / stats.snapshotCount) : 0);
     }
 
-    // 6. Top 5 IPs
     const sortedIps = Object.entries(ipCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-    // 7. Conexiones actuales (del bloque más reciente)
     const activeConnections = (timeBlocks[0] || "").split('ý').filter(e => e.includes('ü')).length;
 
-    // 8. Media global REDONDEADA
     const validValues = chartData.filter(v => v > 0);
     const globalAverage = validValues.length > 0 
         ? Math.round(validValues.reduce((a, b) => a + b, 0) / validValues.length) 

@@ -1,5 +1,9 @@
 <template>
-  <div id="main-layout">
+  <div v-if="$route.name === 'Login'" id="login-layout">
+    <router-view></router-view>
+  </div>
+
+  <div v-else id="main-layout">
     <nav class="sidebar">
       <div class="sidebar-header">
         <h3>Gestión RPC</h3>
@@ -26,6 +30,9 @@
         <li>
           <router-link to="/seguridad">Seguridad</router-link>
         </li>
+        <li class="logout-item">
+          <a @click.prevent="logout" href="#">Cerrar Sesión</a>
+        </li>
       </ul>
     </nav>
 
@@ -38,20 +45,19 @@
 </template>
 
 <script>
-import GlobalSearch from '../components/GlobalSearch.vue'; // <-- Importar el nuevo componente
+import GlobalSearch from '../components/GlobalSearch.vue';
 
 export default {
   name: 'App',
   components: {
-    GlobalSearch // <-- Registrar el componente
+    GlobalSearch
   },
   data() {
     return {
-      isGlobalSearchOpen: false // <-- Estado para controlar la visibilidad
+      isGlobalSearchOpen: false
     }
   },
   mounted() {
-    // Añadir atajo de teclado global (Ctrl+K o Cmd+K)
     window.addEventListener('keydown', this.handleGlobalKeydown);
   },
   beforeUnmount() {
@@ -63,12 +69,22 @@ export default {
         event.preventDefault();
         this.isGlobalSearchOpen = !this.isGlobalSearchOpen;
       }
+    },
+    // Método para limpiar la sesión y redirigir
+    logout() {
+      localStorage.removeItem('app_authenticated');
+      this.$router.push('/login');
     }
   }
 }
 </script>
 
 <style scoped>
+#login-layout {
+  min-height: 100vh;
+  width: 100%;
+}
+
 #main-layout {
   display: flex;
   min-height: 100vh;
@@ -102,17 +118,23 @@ export default {
   color: #ecf0f1;
   padding: 20px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
+
 .sidebar-header h3 {
   margin: 0;
   text-align: center;
   font-size: 24px;
 }
+
 .nav-links {
   list-style: none;
   padding: 0;
   margin-top: 40px;
+  flex-grow: 1;
 }
+
 .nav-links li a {
   display: block;
   padding: 15px;
@@ -120,11 +142,27 @@ export default {
   text-decoration: none;
   border-radius: 6px;
   transition: background-color 0.3s;
+  cursor: pointer;
 }
+
 .nav-links li a:hover,
-.nav-links li a.router-link-exact-active { /* Estilo para el enlace activo */
+.nav-links li a.router-link-exact-active { 
   background-color: #34495e;
 }
+
+/* Estilo para el botón de cerrar sesión */
+.logout-item {
+  margin-top: auto; /* Empuja el botón al fondo del sidebar */
+}
+
+.logout-item a {
+  color: #e74c3c !important; /* Color rojo para indicar salida */
+}
+
+.logout-item a:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
 .main-content {
   flex-grow: 1;
   padding: 40px;
