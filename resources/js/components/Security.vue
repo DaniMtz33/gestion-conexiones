@@ -291,22 +291,25 @@ export default {
   background: #4299e1;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
+.btn-verify:hover { background: #3182ce; }
 
 .btn-cancel {
   background: #edf2f7;
   color: #4a5568;
-  border: none;
-  padding: 12px 24px;
+  border: 1px solid #e2e8f0;
+  padding: 10px 20px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  margin-right: 10px;
+  transition: background-color 0.2s;
 }
+.btn-cancel:hover { background: #e2e8f0; }
 
 .btn-link {
   background: none;
@@ -326,12 +329,14 @@ export default {
   border: 2px solid #edf2f7;
   border-radius: 8px;
   font-size: 0.95rem;
-  box-sizing: border-box; 
+  box-sizing: border-box;
+  transition: all 0.2s;
 }
 
 .styled-input:focus {
   outline: none;
   border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
 }
 
 .text-right { text-align: right; }

@@ -38,37 +38,31 @@
         </section>
       </div>
 
-      <div class="row">
-        <div class="col-12 mb-4">
-          <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-              <div class="card-header-modern justify-content-start mb-4">
-                <div class="icon-circle bg-blue-light">
-                  <i class="bi bi-graph-up text-blue"></i>
-                </div>
-                <h3>Tendencia de Conexiones (15 días)</h3>
+      <div class="charts-wrapper">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="card-header-modern justify-content-start mb-4">
+              <div class="icon-circle bg-blue-light">
+                <i class="bi bi-graph-up text-blue"></i>
               </div>
-              
-              <div class="chart-container">
-                <canvas id="trendsChart"></canvas>
-              </div>
+              <h3>Tendencia de Conexiones (15 días)</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="trendsChart"></canvas>
             </div>
           </div>
         </div>
 
-        <div class="col-12 mb-4">
-          <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-              <div class="card-header-modern justify-content-start mb-4">
-                <div class="icon-circle bg-orange-light">
-                  <i class="bi bi-hdd-network text-orange"></i>
-                </div>
-                <h3>Top 5 IPs de Origen Quincenal</h3>
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="card-header-modern justify-content-start mb-4">
+              <div class="icon-circle bg-orange-light">
+                <i class="bi bi-hdd-network text-orange"></i>
               </div>
-
-              <div class="chart-container">
-                <canvas id="ipsChart"></canvas>
-              </div>
+              <h3>Top 5 IPs de Origen Quincenal</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="ipsChart"></canvas>
             </div>
           </div>
         </div>
@@ -79,7 +73,10 @@
 
 <script>
 import apiService from '../apiService';
-import Chart from 'chart.js/auto'; 
+import Chart from 'chart.js/auto';
+
+const CACHE_KEY = 'dashboard_cache';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 export default {
   name: 'Dashboard',
@@ -94,35 +91,57 @@ export default {
   async mounted() {
     await this.loadDashboardData();
   },
+  beforeUnmount() {
+    if (this.trendsChartInstance) this.trendsChartInstance.destroy();
+    if (this.ipsChartInstance) this.ipsChartInstance.destroy();
+  },
   methods: {
-    async loadDashboardData() {
+    getCachedData() {
       try {
-        const lastKnownTotal = localStorage.getItem('last_total_users');
-        if (lastKnownTotal) {
-            this.kpis.totalUsers = lastKnownTotal;
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const { timestamp, data } = JSON.parse(raw);
+        if (Date.now() - timestamp > CACHE_TTL_MS) {
+          localStorage.removeItem(CACHE_KEY);
+          return null;
         }
+        return data;
+      } catch {
+        return null;
+      }
+    },
 
+    setCachedData(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch { /* quota exceeded, ignorar */ }
+    },
+
+    applyData(data) {
+      this.kpis.activeConnections = data.kpis.activeConnections;
+      this.kpis.alerts = data.kpis.alerts;
+      const total = data.kpis.totalUsers;
+      this.kpis.totalUsers = total > 0 ? total : (this.kpis.totalUsers === '...' ? 0 : this.kpis.totalUsers);
+      this.$nextTick(() => {
+        if (data.charts) this.renderCharts(data.charts);
+      });
+    },
+
+    async loadDashboardData() {
+      const cached = this.getCachedData();
+
+      if (cached) {
+        this.applyData(cached);
+        return;
+      }
+
+      try {
         const response = await apiService.getData('GET_DASHBOARD');
-        
+
         if (response && response.data && response.data.kpis) {
-            const data = response.data;
-            const newTotal = data.kpis.totalUsers;
-
-            if (newTotal > 0) {
-                this.kpis.totalUsers = newTotal;
-                localStorage.setItem('last_total_users', newTotal); 
-            } else if (this.kpis.totalUsers === '...') {
-                this.kpis.totalUsers = 0;
-            }
-
-            this.kpis.activeConnections = data.kpis.activeConnections;
-            this.kpis.alerts = data.kpis.alerts;
-            
-            this.$nextTick(() => {
-                if (data.charts) {
-                    this.renderCharts(data.charts);
-                }
-            });
+          const data = response.data;
+          this.setCachedData(data);
+          this.applyData(data);
         }
       } catch (error) {
         console.error("Error cargando dashboard:", error);
@@ -277,8 +296,9 @@ export default {
 }
 
 /* Rejilla de Gráficas */
-.row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
-.col-12 { flex: 0 0 100%; max-width: 100%; padding: 0 15px; }
+.charts-wrapper { display: flex; flex-direction: column; gap: 24px; }
+.card-body { padding: 24px; }
+.mb-4 { margin-bottom: 24px; }
 
 .chart-container {
   position: relative;

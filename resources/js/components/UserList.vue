@@ -286,6 +286,7 @@ export default {
 .settings-page { max-width: 1000px; margin: 40px auto; padding: 0 20px; font-family: 'Inter', sans-serif; color: #2d3748; }
 .settings-header { margin-bottom: 30px; text-align: center; }
 .settings-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a202c; margin-bottom: 8px; }
+.settings-header p { color: #718096; }
 .card { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 24px; border: 1px solid #edf2f7; }
 .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .card-header h2, .card-header h3 { font-size: 1.1rem; font-weight: 600; margin: 0; }
@@ -312,19 +313,19 @@ export default {
 /* --- NUEVOS ESTILOS PARA EL MODAL DE EDICIÓN --- */
 
 .modal-header-custom { display: flex; align-items: center; gap: 16px; width: 100%; }
-.icon-box-modal { width: 44px; height: 44px; background: #eef2ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.icon-box-modal { width: 44px; height: 44px; background: #ebf8ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 .edit-icon-modal { font-size: 1.2rem; }
-.modal-title-main { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin: 0; }
-.modal-subtitle { font-size: 0.85rem; color: #64748b; margin: 2px 0 0 0; }
+.modal-title-main { font-size: 1.2rem; font-weight: 700; color: #1a202c; margin: 0; }
+.modal-subtitle { font-size: 0.85rem; color: #718096; margin: 2px 0 0 0; }
 
 .modal-body-wrapper { padding: 8px 4px; }
 .form-section-modern { display: flex; flex-direction: column; gap: 8px; }
-.form-label-modern { font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.025em; }
+.form-label-modern { font-size: 0.85rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.025em; }
 
 .modern-input-field {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #edf2f7;
   border-radius: 8px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
@@ -333,18 +334,18 @@ export default {
 }
 .modern-input-field:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
 }
-.modern-input-field:disabled { background-color: #f1f5f9; cursor: not-allowed; color: #94a3b8; }
+.modern-input-field:disabled { background-color: #f7fafc; cursor: not-allowed; color: #a0aec0; }
 
 .input-hint-container { display: flex; flex-direction: column; gap: 4px; }
-.field-hint { font-size: 0.75rem; color: #94a3b8; }
+.field-hint { font-size: 0.75rem; color: #a0aec0; }
 
 .modal-footer-modern { display: flex; justify-content: flex-end; gap: 12px; width: 100%; }
 
 .btn-modern-primary {
-  background-color: #4f46e5;
+  background-color: #4299e1;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -356,12 +357,12 @@ export default {
   gap: 8px;
   transition: background-color 0.2s;
 }
-.btn-modern-primary:hover { background-color: #4338ca; }
+.btn-modern-primary:hover { background-color: #3182ce; }
 .btn-modern-primary:disabled { opacity: 0.6; cursor: wait; }
 
 .btn-modern-secondary {
-  background-color: #f1f5f9;
-  color: #475569;
+  background-color: #edf2f7;
+  color: #4a5568;
   border: 1px solid #e2e8f0;
   padding: 10px 20px;
   border-radius: 8px;

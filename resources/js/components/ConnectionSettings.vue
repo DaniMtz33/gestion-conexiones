@@ -222,7 +222,9 @@ export default {
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
+.btn-verify:hover { background: #3182ce; }
 
 .validation-badge {
   margin-top: 16px;
@@ -285,7 +287,10 @@ input:checked + .slider:before { transform: translateX(22px); }
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
+.btn-save:hover:not(:disabled) { background: #1a202c; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .loader {
   width: 18px;
