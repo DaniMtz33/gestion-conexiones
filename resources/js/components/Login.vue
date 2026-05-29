@@ -74,9 +74,10 @@ export default {
       this.loading = true;
       this.error = false;
       try {
-        await apiService.login(this.username, this.password);
+        const result = await apiService.login(this.username, this.password);
         localStorage.setItem('app_authenticated', 'true');
         localStorage.setItem('app_user', this.username);
+        localStorage.setItem('app_user_id', result.OUTPUT);
         this.$router.push('/');
       } catch (e) {
         this.errorMessage = e.message || 'Error de autenticación';

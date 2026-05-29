@@ -6,6 +6,33 @@
     </header>
 
     <main class="settings-content">
+
+      <section class="card mb-4">
+        <div class="card-header p-4">
+          <div class="icon-circle bg-blue">
+            <i class="icon">🔑</i>
+          </div>
+          <h3>Cambiar Contraseña</h3>
+        </div>
+        <div class="p-4">
+          <p class="text-muted small mb-3">Usuario en sesión: <strong>{{ currentUser }}</strong></p>
+          <form @submit.prevent="submitChangePassword" class="change-pass-form">
+            <div class="form-group mb-3">
+              <label class="font-weight-bold">Nueva Contraseña</label>
+              <input type="password" v-model="passForm.newPass" class="styled-input" required>
+            </div>
+            <div class="form-group mb-3">
+              <label class="font-weight-bold">Confirmar Contraseña</label>
+              <input type="password" v-model="passForm.confirmPass" class="styled-input" required>
+            </div>
+            <div v-if="passMessage" :class="['pass-message', passMessageType]">{{ passMessage }}</div>
+            <button type="submit" class="btn-verify" :disabled="passLoading">
+              {{ passLoading ? 'Guardando...' : 'Cambiar Contraseña' }}
+            </button>
+          </form>
+        </div>
+      </section>
+
       <div class="text-right mb-4">
         <button @click="openCreateUserModal" class="btn-verify">
           + Dar de Alta Nuevo Usuario
@@ -117,6 +144,11 @@ export default {
   components: { Modal },
   data() {
     return {
+      currentUser: localStorage.getItem('app_user') || '',
+      passForm: { newPass: '', confirmPass: '' },
+      passMessage: '',
+      passMessageType: 'success',
+      passLoading: false,
       systemUsers: [
         { id: 1, name: 'Admin Principal', email: 'admin@example.com', role: 'Administrador', status: 'Activo', lastLogin: '2025-10-14 10:00:00' },
         { id: 2, name: 'Operador Ventas', email: 'op_ventas@example.com', role: 'Operador', status: 'Inactivo', lastLogin: '2025-09-01 12:30:00' },
@@ -129,6 +161,28 @@ export default {
     };
   },
   methods: {
+    async submitChangePassword() {
+      if (this.passForm.newPass !== this.passForm.confirmPass) {
+        this.passMessage = 'Las contraseñas no coinciden.';
+        this.passMessageType = 'error';
+        return;
+      }
+      this.passLoading = true;
+      this.passMessage = '';
+      try {
+        const user = localStorage.getItem('app_user') || '';
+        const id = localStorage.getItem('app_user_id') || '';
+        await apiService.changePassword(user, id, this.passForm.newPass);
+        this.passMessage = 'Contraseña cambiada exitosamente.';
+        this.passMessageType = 'success';
+        this.passForm = { newPass: '', confirmPass: '' };
+      } catch {
+        this.passMessage = 'Error al cambiar la contraseña. Inténtalo de nuevo.';
+        this.passMessageType = 'error';
+      } finally {
+        this.passLoading = false;
+      }
+    },
     openCreateUserModal() {
       this.isEditMode = false;
       this.showPasswordFields = true;
@@ -352,4 +406,19 @@ export default {
 
 .text-right { text-align: right; }
 .table-responsive { width: 100%; overflow-x: auto; }
+
+.change-pass-form { max-width: 400px; }
+
+.pass-message {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.pass-message.success { background: #f0fff4; color: #2f855a; border: 1px solid #9ae6b4; }
+.pass-message.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+.mb-4 { margin-bottom: 1rem; }
+.p-4  { padding: 1rem; }
 </style>
