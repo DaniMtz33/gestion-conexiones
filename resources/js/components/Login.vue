@@ -43,12 +43,12 @@
 
         <transition name="fade">
           <div v-if="error" class="error-banner">
-            <span>✕</span> Credenciales incorrectas. Inténtalo de nuevo.
+            <span>✕</span> {{ errorMessage }}
           </div>
         </transition>
 
-        <button type="submit" class="btn-login">
-          Iniciar Sesión
+        <button type="submit" class="btn-login" :disabled="loading">
+          {{ loading ? 'Verificando...' : 'Iniciar Sesión' }}
         </button>
       </form>
     </div>
@@ -56,22 +56,33 @@
 </template>
 
 <script>
+import apiService from '../apiService.js';
+
 export default {
   name: 'Login',
   data() {
     return {
       username: '',
       password: '',
-      error: false
+      error: false,
+      errorMessage: '',
+      loading: false
     }
   },
   methods: {
-    handleLogin() {
-      if (this.username === 'admin' && this.password === '1234') {
+    async handleLogin() {
+      this.loading = true;
+      this.error = false;
+      try {
+        await apiService.login(this.username, this.password);
         localStorage.setItem('app_authenticated', 'true');
+        localStorage.setItem('app_user', this.username);
         this.$router.push('/');
-      } else {
+      } catch (e) {
+        this.errorMessage = e.message || 'Error de autenticación';
         this.error = true;
+      } finally {
+        this.loading = false;
       }
     }
   }

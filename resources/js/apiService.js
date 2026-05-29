@@ -168,6 +168,25 @@ function processDashboardData(users, historyRaw, daysRequested) {
 }
 
 export default {
+async login(user, pass) {
+    const response = await apiClient.post('/subroutine/SLOGIN', { USER: user, PASS: pass });
+    const output = response.data?.OUTPUT;
+    if (!output || isNaN(Number(output))) {
+        throw new Error(output || 'Error de autenticación');
+    }
+    return response.data;
+},
+
+async logout(user) {
+    const response = await apiClient.post('/subroutine/SLOGOUT', { USER: user });
+    return response.data;
+},
+
+async changePassword(user, id, pass) {
+    const response = await apiClient.post('/subroutine/CHANGE.PASS', { USER: user, ID: id, PASS: pass });
+    return response.data;
+},
+
 async getData(p_option, p_parameters = {}) {
     try {
         if (p_option === 'SAVE_USER') {

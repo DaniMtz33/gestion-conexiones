@@ -110,6 +110,7 @@
 
 <script>
 import Modal from './Modal.vue';
+import apiService from '../apiService.js';
 
 export default {
   name: 'Security',
@@ -144,9 +145,19 @@ export default {
       this.isModalVisible = false;
       this.showPasswordFields = false;
     },
-    saveUser() {
-      console.log('Guardando usuario:', this.form);
-      alert(this.isEditMode ? 'Usuario actualizado con éxito (Simulación).' : 'Usuario dado de alta con éxito (Simulación).');
+    async saveUser() {
+      if (this.form.password && this.form.password.trim()) {
+        const adminUser = localStorage.getItem('app_user') || '';
+        try {
+          await apiService.changePassword(adminUser, this.form.id || this.form.name, this.form.password);
+          alert(this.isEditMode ? 'Contraseña actualizada con éxito.' : 'Usuario dado de alta con éxito.');
+        } catch {
+          alert('Error al cambiar la contraseña. Inténtalo de nuevo.');
+          return;
+        }
+      } else {
+        alert(this.isEditMode ? 'Usuario actualizado con éxito.' : 'Usuario dado de alta con éxito.');
+      }
       this.closeModal();
     },
     toggleStatus(user) {

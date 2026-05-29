@@ -46,6 +46,7 @@
 
 <script>
 import GlobalSearch from '../components/GlobalSearch.vue';
+import apiService from '../apiService.js';
 
 export default {
   name: 'App',
@@ -70,9 +71,15 @@ export default {
         this.isGlobalSearchOpen = !this.isGlobalSearchOpen;
       }
     },
-    // Método para limpiar la sesión y redirigir
-    logout() {
+    async logout() {
+      const user = localStorage.getItem('app_user') || '';
+      try {
+        await apiService.logout(user);
+      } catch {
+        // continuar con el logout aunque falle el endpoint
+      }
       localStorage.removeItem('app_authenticated');
+      localStorage.removeItem('app_user');
       this.$router.push('/login');
     }
   }
