@@ -48,7 +48,7 @@
               <h3>Tendencia de Conexiones (15 días)</h3>
             </div>
             <div class="chart-container">
-              <canvas id="trendsChart"></canvas>
+              <canvas ref="trendsChart"></canvas>
             </div>
           </div>
         </div>
@@ -62,7 +62,7 @@
               <h3>Top 5 IPs de Origen Quincenal</h3>
             </div>
             <div class="chart-container">
-              <canvas id="ipsChart"></canvas>
+              <canvas ref="ipsChart"></canvas>
             </div>
           </div>
         </div>
@@ -89,11 +89,13 @@ export default {
     };
   },
   async mounted() {
+    this._isMounted = true;
     await this.loadDashboardData();
   },
   beforeUnmount() {
-    if (this.trendsChartInstance) this.trendsChartInstance.destroy();
-    if (this.ipsChartInstance) this.ipsChartInstance.destroy();
+    this._isMounted = false;
+    if (this.trendsChartInstance) { this.trendsChartInstance.destroy(); this.trendsChartInstance = null; }
+    if (this.ipsChartInstance)    { this.ipsChartInstance.destroy();    this.ipsChartInstance = null; }
   },
   methods: {
     getCachedData() {
@@ -118,11 +120,13 @@ export default {
     },
 
     applyData(data) {
+      if (!this._isMounted) return;
       this.kpis.activeConnections = data.kpis.activeConnections;
       this.kpis.alerts = data.kpis.alerts;
       const total = data.kpis.totalUsers;
       this.kpis.totalUsers = total > 0 ? total : (this.kpis.totalUsers === '...' ? 0 : this.kpis.totalUsers);
       this.$nextTick(() => {
+        if (!this._isMounted) return;
         if (data.charts) this.renderCharts(data.charts);
       });
     },
@@ -138,22 +142,26 @@ export default {
       try {
         const response = await apiService.getData('GET_DASHBOARD');
 
+        if (!this._isMounted) return;
+
         if (response && response.data && response.data.kpis) {
           const data = response.data;
           this.setCachedData(data);
           this.applyData(data);
         }
       } catch (error) {
-        console.error("Error cargando dashboard:", error);
+        if (this._isMounted) console.error("Error cargando dashboard:", error);
       }
     },
 
     renderCharts(charts) {
-      const canvas1 = document.getElementById('trendsChart');
+      if (!this._isMounted) return;
+
+      const canvas1 = this.$refs.trendsChart;
       if (canvas1 && charts.trends) {
-        const existingChart1 = Chart.getChart(canvas1); 
-        if (existingChart1) existingChart1.destroy();
-      
+        const existing = Chart.getChart(canvas1);
+        if (existing) existing.destroy();
+
         this.trendsChartInstance = new Chart(canvas1, {
           type: 'line',
           data: {
@@ -167,37 +175,37 @@ export default {
               fill: true
             }]
           },
-          options: { 
-            responsive: true, 
+          options: {
+            responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 1000 }
           }
         });
       }
 
-      const canvas2 = document.getElementById('ipsChart');
+      const canvas2 = this.$refs.ipsChart;
       if (canvas2 && charts.topIps) {
-          const existingChart2 = Chart.getChart(canvas2);
-          if (existingChart2) existingChart2.destroy();
+        const existing = Chart.getChart(canvas2);
+        if (existing) existing.destroy();
 
-          this.ipsChartInstance = new Chart(canvas2, {
-            type: 'bar',
-            data: {
-              labels: charts.topIps.labels,
-              datasets: [{
-                label: 'Intentos de Conexión',
-                data: charts.topIps.data,
-                backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14'],
-                borderWidth: 1
-              }]
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                indexAxis: 'y'
-            }
-          });
-        }
+        this.ipsChartInstance = new Chart(canvas2, {
+          type: 'bar',
+          data: {
+            labels: charts.topIps.labels,
+            datasets: [{
+              label: 'Intentos de Conexión',
+              data: charts.topIps.data,
+              backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14'],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y'
+          }
+        });
+      }
     }
   }
 };

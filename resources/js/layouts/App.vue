@@ -61,7 +61,6 @@ export default {
   },
   mounted() {
     window.addEventListener('keydown', this.handleGlobalKeydown);
-    window.addEventListener('beforeunload', this.handleBeforeUnload);
     ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
       window.addEventListener(evt, this.resetInactivityTimer, { passive: true })
     );
@@ -69,7 +68,6 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.handleGlobalKeydown);
-    window.removeEventListener('beforeunload', this.handleBeforeUnload);
     ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
       window.removeEventListener(evt, this.resetInactivityTimer)
     );
@@ -81,14 +79,6 @@ export default {
         event.preventDefault();
         this.isGlobalSearchOpen = !this.isGlobalSearchOpen;
       }
-    },
-    handleBeforeUnload() {
-      const user = sessionStorage.getItem('app_user') || '';
-      if (user) {
-        const body = JSON.stringify({ USER: user });
-        navigator.sendBeacon('/api/UNIRPC_CONN/subroutine/SLOGOUT', new Blob([body], { type: 'application/json' }));
-      }
-      sessionStorage.clear();
     },
     startInactivityTimer() {
       this.inactivityTimer = setTimeout(() => this.logout(), 60 * 60 * 1000);
