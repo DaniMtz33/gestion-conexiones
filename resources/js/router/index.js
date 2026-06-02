@@ -62,7 +62,7 @@ const router = createRouter({
 // 3. Guardia global: Centraliza la protección en un solo lugar
 router.beforeEach((to, from, next) => {
   // Verificamos la clave 'app_authenticated' que definimos en tu Login.vue
-  const isAuthenticated = localStorage.getItem('app_authenticated') === 'true';
+  const isAuthenticated = sessionStorage.getItem('app_authenticated') === 'true';
 
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
     next({ name: 'Login' });

@@ -144,7 +144,7 @@ export default {
   components: { Modal },
   data() {
     return {
-      currentUser: localStorage.getItem('app_user') || '',
+      currentUser: sessionStorage.getItem('app_user') || '',
       passForm: { newPass: '', confirmPass: '' },
       passMessage: '',
       passMessageType: 'success',
@@ -170,8 +170,8 @@ export default {
       this.passLoading = true;
       this.passMessage = '';
       try {
-        const user = localStorage.getItem('app_user') || '';
-        const id = localStorage.getItem('app_user_id') || '';
+        const user = sessionStorage.getItem('app_user') || '';
+        const id = sessionStorage.getItem('app_user_id') || '';
         await apiService.changePassword(user, id, this.passForm.newPass);
         this.passMessage = 'Contraseña cambiada exitosamente.';
         this.passMessageType = 'success';
@@ -201,7 +201,7 @@ export default {
     },
     async saveUser() {
       if (this.form.password && this.form.password.trim()) {
-        const adminUser = localStorage.getItem('app_user') || '';
+        const adminUser = sessionStorage.getItem('app_user') || '';
         try {
           await apiService.changePassword(adminUser, this.form.id || this.form.name, this.form.password);
           alert(this.isEditMode ? 'Contraseña actualizada con éxito.' : 'Usuario dado de alta con éxito.');

@@ -55,14 +55,25 @@ export default {
   },
   data() {
     return {
-      isGlobalSearchOpen: false
+      isGlobalSearchOpen: false,
+      inactivityTimer: null
     }
   },
   mounted() {
     window.addEventListener('keydown', this.handleGlobalKeydown);
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
+      window.addEventListener(evt, this.resetInactivityTimer, { passive: true })
+    );
+    this.startInactivityTimer();
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.handleGlobalKeydown);
+    window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
+      window.removeEventListener(evt, this.resetInactivityTimer)
+    );
+    clearTimeout(this.inactivityTimer);
   },
   methods: {
     handleGlobalKeydown(event) {
@@ -71,15 +82,30 @@ export default {
         this.isGlobalSearchOpen = !this.isGlobalSearchOpen;
       }
     },
+    handleBeforeUnload() {
+      const user = sessionStorage.getItem('app_user') || '';
+      if (user) {
+        const body = JSON.stringify({ USER: user });
+        navigator.sendBeacon('/api/UNIRPC_CONN/subroutine/SLOGOUT', new Blob([body], { type: 'application/json' }));
+      }
+      sessionStorage.clear();
+    },
+    startInactivityTimer() {
+      this.inactivityTimer = setTimeout(() => this.logout(), 60 * 60 * 1000);
+    },
+    resetInactivityTimer() {
+      clearTimeout(this.inactivityTimer);
+      this.startInactivityTimer();
+    },
     async logout() {
-      const user = localStorage.getItem('app_user') || '';
+      clearTimeout(this.inactivityTimer);
+      const user = sessionStorage.getItem('app_user') || '';
       try {
         await apiService.logout(user);
       } catch {
         // continuar con el logout aunque falle el endpoint
       }
-      localStorage.removeItem('app_authenticated');
-      localStorage.removeItem('app_user');
+      sessionStorage.clear();
       this.$router.push('/login');
     }
   }

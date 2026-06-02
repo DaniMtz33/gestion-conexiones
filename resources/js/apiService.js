@@ -13,7 +13,7 @@ headers: {
 
 // --- INTERCEPTOR DE AUTENTICACIÓN (NUEVO) ---
 apiClient.interceptors.request.use(config => {
-    const auth = localStorage.getItem('app_authenticated');
+    const auth = sessionStorage.getItem('app_authenticated');
     if (auth === 'true') {
         // Se añade la cabecera para que el backend reconozca la sesión
         config.headers.Authorization = `Bearer simulado_token`;
