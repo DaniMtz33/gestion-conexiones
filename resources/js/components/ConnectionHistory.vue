@@ -115,14 +115,7 @@ export default {
             endDate: this.singleDate    
         };
         const response = await apiService.getData('GET_HISTORY', params);
-        
-        if (this.singleDate && this.singleDate.trim() !== "") {
-            this.connections = response.data.filter(conn => {
-                return conn.timestamp && conn.timestamp.startsWith(this.singleDate);
-            });
-        } else {
-            this.connections = response.data;
-        }
+        this.connections = response.data;
       } catch (error) {
         console.error("Hubo un error al obtener el historial:", error);
       }
