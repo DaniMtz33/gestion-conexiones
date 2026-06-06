@@ -40,7 +40,7 @@
       <section class="card p-0 overflow-hidden">
         <div class="card-header p-4 d-flex justify-content-between align-items-center">
           <h3>Registros de Acceso</h3>
-          <span class="records-count">{{ connections.length }} resultados encontrados</span>
+          <span class="records-count">{{ filteredConnections.length }} resultados encontrados</span>
         </div>
         
         <div class="table-responsive">
@@ -66,13 +66,18 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="connections.length === 0">
+              <tr v-if="filteredConnections.length === 0">
                 <td colspan="6" class="text-center py-5 text-muted">No se encontraron registros para la fecha seleccionada</td>
               </tr>
-              <tr v-for="conn in connections" :key="conn.id">
+              <tr v-for="conn in filteredConnections" :key="conn.id">
                 <td class="font-weight-bold text-dark">{{ conn.user }}</td>
                 <td class="text-mono">{{ conn.ip }}</td>
-                <td>{{ conn.timestamp }}</td>
+                <td>
+                  <span class="date-clickable" @click="filterByDate(conn.timestamp)" :title="'Filtrar por esta fecha'">
+                    {{ conn.timestamp }}
+                    <span class="date-filter-icon">📅</span>
+                  </span>
+                </td>
                 <td>
                   <span :class="getStatusClass(conn.status)">
                     {{ conn.status }}
@@ -98,10 +103,21 @@ export default {
     return {
       connections: [],
       searchQuery: '',
-      singleDate: '', 
+      singleDate: '',
       sortOrder: null,
-      sortOrderIp: null // Estado de orden para la IP
+      sortOrderIp: null
     };
+  },
+  computed: {
+    filteredConnections() {
+      if (!this.singleDate) return this.connections;
+      const [fd, fm, fy] = this.singleDate.split('/');
+      return this.connections.filter(conn => {
+        if (!conn.timestamp) return false;
+        const [d, m, y] = conn.timestamp.split(' ')[0].split('/');
+        return parseInt(d) === parseInt(fd) && m === fm && y === fy;
+      });
+    }
   },
   mounted() {
     this.fetchHistory();
@@ -142,6 +158,14 @@ export default {
           ? ipA.localeCompare(ipB, undefined, { numeric: true }) 
           : ipB.localeCompare(ipA, undefined, { numeric: true });
       });
+    },
+
+    filterByDate(timestamp) {
+      if (!timestamp) return;
+      const datePart = timestamp.split(' ')[0];
+      const [day, month, year] = datePart.split('/');
+      this.singleDate = `${day.padStart(2, '0')}/${month}/${year}`;
+      this.fetchHistory();
     },
 
     getStatusClass(status) {
@@ -221,15 +245,22 @@ export default {
 .date-input-wrapper { 
   max-width: 220px; 
 }
-.btn-verify { 
-  background: #4299e1; 
-  color: white; 
-  border: none; 
-  padding: 12px 24px; 
-  border-radius: 8px; 
-  font-weight: 600; 
-  cursor: pointer; 
-  white-space: nowrap; 
+.btn-verify {
+  background: #4299e1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-verify:hover {
+  background: #3182ce;
+}
+.btn-verify:active {
+  background: #2b6cb0;
 }
 .records-count { 
   background: #f7fafc; 
@@ -291,7 +322,28 @@ export default {
   background: #fff5f5; 
   color: #c53030; 
 }
-.table-responsive { 
+.date-clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.date-clickable:hover {
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+.date-filter-icon {
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.date-clickable:hover .date-filter-icon {
+  opacity: 1;
+}
+.table-responsive {
   width: 100%; 
   overflow-x: auto; 
 }

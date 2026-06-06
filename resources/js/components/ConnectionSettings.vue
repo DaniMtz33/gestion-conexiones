@@ -31,8 +31,8 @@
 
         <transition name="fade">
           <div v-if="userFound !== null" class="validation-badge" :class="userFound ? 'success' : 'error'">
-             <span v-if="userFound">✓ Usuario <strong>{{ validatedUserData.name }}</strong> encontrado.</span>
-             <span v-else>✕ El usuario <strong>"{{ targetUser }}"</strong> no existe en el registro.</span>
+            <span v-if="userFound">✓ Usuario <strong>{{ validatedUserData.name }}</strong> encontrado.</span>
+            <span v-else>✕ El usuario <strong>"{{ targetUser }}"</strong> no existe en el registro.</span>
           </div>
         </transition>
       </section>
