@@ -73,18 +73,29 @@ function dataMapper(option, apiData) {
     if (apiData.resultados && option === 'GET_HISTORY') {
         let rawString = apiData.resultados;
         if (!rawString || rawString === "" || rawString === "SIN RESULTADOS") return [];
-        const rows = rawString.split('ý'); 
-        return rows.filter(r => r.includes('ü')).map((row, index) => {
-            const parts = row.split('ü'); 
-            return {
-                id: index + 1,
-                timestamp: parts[0] || 'N/A',
-                user: parts[1] || 'Desconocido',
-                ip: parts[2] || 'N/A',
-                status: parts[4] || 'Desconocido',
-                duration: parts[5] || 'N/A'
-            };
-        });
+        const segments = rawString.split('ý');
+        const result = [];
+        let currentKey = '';
+        for (const seg of segments) {
+            const s = seg.trim();
+            if (!s) continue;
+            if (s.includes('ü')) {
+                const parts = s.split('ü');
+                result.push({
+                    id: result.length + 1,
+                    key: currentKey,
+                    timestamp: parts[0] || 'N/A',
+                    user: parts[1] || 'Desconocido',
+                    ip: parts[2] || 'N/A',
+                    status: parts[4] || 'Desconocido',
+                    duration: parts[5] || 'N/A',
+                    disconnectionReason: parts[6] || ''
+                });
+            } else {
+                currentKey = s.includes('þ') ? s.split('þ').pop() : s;
+            }
+        }
+        return result;
     }
     return [];
 }
@@ -168,6 +179,29 @@ function processDashboardData(users, historyRaw, daysRequested) {
 }
 
 export default {
+async getPusers() {
+    const response = await apiClient.get('/Pusers');
+    const d = response.data;
+    return Array.isArray(d) ? d : (Array.isArray(d?.Pusers) ? d.Pusers : []);
+},
+
+async createPuser(data) {
+    const response = await apiClient.post('/Pusers', data);
+    return response.data;
+},
+
+async getConfigReportes() {
+    const response = await apiClient.get('/Config.reportes');
+    const d = response.data;
+    return Array.isArray(d) ? d : (Array.isArray(d?.['Config.reportes']) ? d['Config.reportes'] : []);
+},
+
+async getServiciosRegistrados() {
+    const response = await apiClient.get('/Servicios.registrados');
+    const d = response.data;
+    return Array.isArray(d) ? d : (Array.isArray(d?.['Servicios.registrados']) ? d['Servicios.registrados'] : []);
+},
+
 async login(user, pass) {
     const response = await apiClient.post('/subroutine/SLOGIN', { USER: user, PASS: pass });
     const output = response.data?.OUTPUT;

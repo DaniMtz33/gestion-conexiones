@@ -5,9 +5,10 @@ import Login from '../components/Login.vue';
 import Dashboard from '../components/Dashboard.vue';
 import UserList from '../components/UserList.vue';
 import ConnectionHistory from '../components/ConnectionHistory.vue';
-import ConnectionSettings from '../components/ConnectionSettings.vue'; 
-import Administration from '../components/Administration.vue'; 
+import Administration from '../components/Administration.vue';
 import Security from '../components/Security.vue';
+import ReportConfig from '../components/ReportConfig.vue';
+import RegisteredServices from '../components/RegisteredServices.vue';
 
 // Definimos las rutas
 const routes = [
@@ -35,21 +36,27 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/ajustes', 
-    name: 'ConnectionSettings',
-    component: ConnectionSettings,
-    meta: { requiresAuth: true }
-  },
-  { 
-    path: '/administracion', 
+    path: '/administracion',
     name: 'Administration',
     component: Administration,
     meta: { requiresAuth: true }
   },
-  { 
-    path: '/seguridad', 
+  {
+    path: '/seguridad',
     name: 'Security',
     component: Security,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/config-reportes',
+    name: 'ReportConfig',
+    component: ReportConfig,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/servicios',
+    name: 'ServiciosRegistrados',
+    component: RegisteredServices,
     meta: { requiresAuth: true }
   }
 ];

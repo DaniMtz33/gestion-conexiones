@@ -25,89 +25,70 @@
       </section>
 
       <section class="card p-0 overflow-hidden">
-        <div class="card-header p-4">
+        <div class="card-header p-4 d-flex justify-content-between align-items-center">
           <h3>Usuarios Registrados</h3>
+          <div class="header-right">
+            <span class="records-count">{{ filteredUsers.length }} usuarios</span>
+            <span v-if="totalPages > 1" class="page-info">Página {{ currentPage }} de {{ totalPages }}</span>
+          </div>
         </div>
         
-        <div class="table-responsive">
+        <div v-if="loading" class="p-4 text-center text-muted">Cargando usuarios...</div>
+        <div v-else class="table-responsive">
           <table class="custom-table">
             <thead>
               <tr>
                 <th @click="sortColumn('username')" class="sortable-header">
-                  <div class="header-content">
-                    Usuario
-                    <span class="sort-icons">
-                      <span v-if="sortKey === 'username' && sortOrder === 'asc'" class="sort-icon">▲</span>
-                      <span v-else-if="sortKey === 'username' && sortOrder === 'desc'" class="sort-icon">▼</span>
-                      <span v-else class="sort-icon neutral">⇵</span>
-                    </span>
-                  </div>
+                  Usuario <span :class="['sort-icon', sortKey !== 'username' ? 'neutral' : '']">{{ sortIcon('username') }}</span>
                 </th>
                 <th @click="sortColumn('owner')" class="sortable-header">
-                  <div class="header-content">
-                    Propietario
-                    <span class="sort-icons">
-                      <span v-if="sortKey === 'owner' && sortOrder === 'asc'" class="sort-icon">▲</span>
-                      <span v-else-if="sortKey === 'owner' && sortOrder === 'desc'" class="sort-icon">▼</span>
-                      <span v-else class="sort-icon neutral">⇵</span>
-                    </span>
-                  </div>
+                  Propietario <span :class="['sort-icon', sortKey !== 'owner' ? 'neutral' : '']">{{ sortIcon('owner') }}</span>
                 </th>
                 <th @click="sortColumn('description')" class="sortable-header">
-                  <div class="header-content">
-                    Descripción
-                    <span class="sort-icons">
-                      <span v-if="sortKey === 'description' && sortOrder === 'asc'" class="sort-icon">▲</span>
-                      <span v-else-if="sortKey === 'description' && sortOrder === 'desc'" class="sort-icon">▼</span>
-                      <span v-else class="sort-icon neutral">⇵</span>
-                    </span>
-                  </div>
+                  Descripción <span :class="['sort-icon', sortKey !== 'description' ? 'neutral' : '']">{{ sortIcon('description') }}</span>
                 </th>
                 <th @click="sortColumn('limit')" class="sortable-header">
-                  <div class="header-content">
-                    Límite
-                    <span class="sort-icons">
-                      <span v-if="sortKey === 'limit' && sortOrder === 'asc'" class="sort-icon">▲</span>
-                      <span v-else-if="sortKey === 'limit' && sortOrder === 'desc'" class="sort-icon">▼</span>
-                      <span v-else class="sort-icon neutral">⇵</span>
-                    </span>
-                  </div>
+                  Límite <span :class="['sort-icon', sortKey !== 'limit' ? 'neutral' : '']">{{ sortIcon('limit') }}</span>
                 </th>
                 <th @click="sortColumn('status')" class="sortable-header">
-                  <div class="header-content">
-                    Estado
-                    <span class="sort-icons">
-                      <span v-if="sortKey === 'status' && sortOrder === 'asc'" class="sort-icon">▲</span>
-                      <span v-else-if="sortKey === 'status' && sortOrder === 'desc'" class="sort-icon">▼</span>
-                      <span v-else class="sort-icon neutral">⇵</span>
-                    </span>
-                  </div>
+                  Estado <span :class="['sort-icon', sortKey !== 'status' ? 'neutral' : '']">{{ sortIcon('status') }}</span>
                 </th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="user in filteredUsers" :key="user.id">
+              <tr v-if="paginatedUsers.length === 0">
+                <td colspan="6" class="text-center py-5">No se encontraron usuarios</td>
+              </tr>
+              <tr v-for="user in paginatedUsers" :key="user.id">
                 <td class="font-weight-bold">{{ user.username }}</td>
                 <td>{{ user.owner }}</td>
                 <td class="text-muted">{{ user.description }}</td>
-                <td class="font-weight-bold">{{ user.limit }}</td> 
+                <td class="font-weight-bold">{{ user.limit }}</td>
                 <td>
                   <span :class="['status-badge', user.status === 'Activo' ? 'success' : 'error']">
                     {{ user.status }}
                   </span>
                 </td>
                 <td class="text-center">
-                  <button @click="openEditModal(user)" class="btn-action">
-                    Editar
-                  </button>
+                  <button @click="openEditModal(user)" class="btn-action">Editar</button>
                 </td>
-              </tr>
-              <tr v-if="filteredUsers.length === 0">
-                <td colspan="6" class="text-center py-5">No se encontraron usuarios</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div v-if="!loading && totalPages > 1" class="pagination">
+          <button @click="currentPage = 1" :disabled="currentPage === 1" class="page-btn">«</button>
+          <button @click="currentPage--" :disabled="currentPage === 1" class="page-btn">‹</button>
+          <button
+            v-for="p in visiblePages"
+            :key="p"
+            @click="currentPage = p"
+            :class="['page-btn', p === currentPage ? 'active' : '']"
+          >{{ p }}</button>
+          <button @click="currentPage++" :disabled="currentPage === totalPages" class="page-btn">›</button>
+          <button @click="currentPage = totalPages" :disabled="currentPage === totalPages" class="page-btn">»</button>
         </div>
       </section>
     </main>
@@ -179,35 +160,69 @@ export default {
   components: { Modal },
   data() {
     return {
-      searchQuery: '', 
+      searchQuery: '',
       users: [],
+      loading: false,
       isModalVisible: false,
       isSaving: false,
       editingUser: {},
       editedDescription: '',
       editedLimit: 0,
       sortKey: '',
-      sortOrder: null
+      sortOrder: 'asc',
+      currentPage: 1,
+      pageSize: 50
     };
   },
   computed: {
-    filteredUsers() {
-      if (!this.searchQuery) return this.users;
-      return this.users.filter(user => {
-        return user.username.toLowerCase().includes(this.searchQuery.toLowerCase());
+    sortedUsers() {
+      if (!this.sortKey) return this.users;
+      const key = this.sortKey;
+      const dir = this.sortOrder === 'asc' ? 1 : -1;
+      return [...this.users].sort((a, b) => {
+        const va = (a[key] || '').toString().toLowerCase();
+        const vb = (b[key] || '').toString().toLowerCase();
+        return va.localeCompare(vb, undefined, { numeric: true }) * dir;
       });
+    },
+    filteredUsers() {
+      if (!this.searchQuery) return this.sortedUsers;
+      const q = this.searchQuery.toLowerCase();
+      return this.sortedUsers.filter(u => u.username.toLowerCase().includes(q));
+    },
+    totalPages() {
+      return Math.max(1, Math.ceil(this.filteredUsers.length / this.pageSize));
+    },
+    paginatedUsers() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredUsers.slice(start, start + this.pageSize);
+    },
+    visiblePages() {
+      const total = this.totalPages;
+      const cur = this.currentPage;
+      const pages = [];
+      for (let p = Math.max(1, cur - 2); p <= Math.min(total, cur + 2); p++) {
+        pages.push(p);
+      }
+      return pages;
     }
+  },
+  watch: {
+    filteredUsers() { this.currentPage = 1; }
   },
   mounted() {
     this.fetchUsers();
   },
   methods: {
-    async fetchUsers() { 
+    async fetchUsers() {
+      this.loading = true;
       try {
         const response = await apiService.getData('GET_USERS');
         this.users = response.data;
       } catch (error) {
-        console.error("Hubo un error al obtener los usuarios:", error);
+        console.error('Error al obtener los usuarios:', error);
+      } finally {
+        this.loading = false;
       }
     },
     sortColumn(key) {
@@ -217,15 +232,11 @@ export default {
         this.sortKey = key;
         this.sortOrder = 'asc';
       }
-      this.users.sort((a, b) => {
-        const valA = (a[key] || '').toString().toLowerCase();
-        const valB = (b[key] || '').toString().toLowerCase();
-        if (this.sortOrder === 'asc') {
-          return valA.localeCompare(valB, undefined, { numeric: true });
-        } else {
-          return valB.localeCompare(valA, undefined, { numeric: true });
-        }
-      });
+      this.currentPage = 1;
+    },
+    sortIcon(key) {
+      if (this.sortKey !== key) return '⇵';
+      return this.sortOrder === 'asc' ? '▲' : '▼';
     },
     onlyNumbers(event) {
       const charCode = (event.which) ? event.which : event.keyCode;
@@ -388,4 +399,19 @@ export default {
 }
 
 .mt-4 { margin-top: 1.5rem; }
+.d-flex { display: flex; }
+.justify-content-between { justify-content: space-between; }
+.align-items-center { align-items: center; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.records-count { background: #f7fafc; padding: 4px 12px; border-radius: 20px; font-size: .85rem; color: #718096; font-weight: 500; }
+.page-info { font-size: .85rem; color: #718096; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 4px; padding: 16px; border-top: 1px solid #edf2f7; }
+.page-btn { background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: .9rem; transition: all .15s; min-width: 36px; }
+.page-btn:hover:not(:disabled) { background: #ebf8ff; border-color: #4299e1; color: #2b6cb0; }
+.page-btn.active { background: #4299e1; border-color: #4299e1; color: white; font-weight: 700; }
+.page-btn:disabled { opacity: .4; cursor: not-allowed; }
+.p-4 { padding: 1rem; }
+.text-center { text-align: center; }
+.text-muted { color: #718096; }
+.py-5 { padding-top: 2rem; padding-bottom: 2rem; }
 </style>

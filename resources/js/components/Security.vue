@@ -2,16 +2,14 @@
   <div class="settings-page">
     <header class="settings-header">
       <h1>Módulo de Seguridad</h1>
-      <p>Gestión de usuarios del sistema (Administradores, Operadores) y sus roles de acceso.</p>
+      <p>Gestión de usuarios del sistema y cambio de contraseña.</p>
     </header>
 
     <main class="settings-content">
 
       <section class="card mb-4">
         <div class="card-header p-4">
-          <div class="icon-circle bg-blue">
-            <i class="icon">🔑</i>
-          </div>
+          <div class="icon-circle bg-blue"><i class="icon">🔑</i></div>
           <h3>Cambiar Contraseña</h3>
         </div>
         <div class="p-4">
@@ -33,57 +31,43 @@
         </div>
       </section>
 
-      <div class="text-right mb-4">
-        <button @click="openCreateUserModal" class="btn-verify">
-          + Dar de Alta Nuevo Usuario
-        </button>
-      </div>
-
       <section class="card p-0 overflow-hidden">
-        <div class="card-header p-4">
-          <div class="icon-circle bg-blue">
-            <i class="icon">🔒</i>
+        <div class="card-header p-4 d-flex justify-content-between align-items-center">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="icon-circle bg-blue"><i class="icon">🔒</i></div>
+            <h3>Usuarios del Sistema (últimos 10 por último login)</h3>
           </div>
-          <h3>Usuarios del Sistema</h3>
+          <button @click="openCreateUserModal" class="btn-verify">+ Dar de Alta</button>
         </div>
-        
-        <div class="table-responsive">
+
+        <div v-if="loadingPusers" class="p-4 text-center text-muted">Cargando usuarios...</div>
+        <div v-else-if="pusersError" class="p-4 text-center" style="color:#c53030;">{{ pusersError }}</div>
+        <div v-else class="table-responsive">
           <table class="custom-table">
             <thead>
               <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Última Conexión</th>
-                <th class="text-center">Acciones</th>
+                <th>@ID</th>
+                <th>NOMBRE</th>
+                <th>ID</th>
+                <th>LAST LOGIN</th>
+                <th>LOGIN ATTEMPT</th>
+                <th>LOGGED</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="user in systemUsers" :key="user.id">
-                <td class="font-weight-bold text-dark">{{ user.name }}</td>
-                <td>{{ user.email }}</td>
+              <tr v-if="pusers.length === 0">
+                <td colspan="6" class="text-center py-5 text-muted">No se encontraron usuarios</td>
+              </tr>
+              <tr v-for="u in pusers" :key="u._id">
+                <td class="font-weight-bold">{{ u._id }}</td>
+                <td>{{ u.nombre || '—' }}</td>
+                <td>{{ u.id || '—' }}</td>
+                <td>{{ u.last_login || '—' }}</td>
+                <td>{{ u.login_attempt || '—' }}</td>
                 <td>
-                  <span class="role-badge">{{ user.role }}</span>
-                </td>
-                <td>
-                  <span :class="['status-badge', user.status === 'Activo' ? 'success' : 'error']">
-                    {{ user.status }}
+                  <span :class="['status-badge', u.logged === '1' ? 'success' : 'neutral']">
+                    {{ u.logged === '1' ? 'SI' : 'NO' }}
                   </span>
-                </td>
-                <td class="text-muted small">{{ user.lastLogin }}</td>
-                <td class="text-center">
-                  <div class="btn-group">
-                    <button @click="openEditModal(user)" class="btn-action edit">
-                      Editar/Roles
-                    </button>
-                    <button 
-                      @click="toggleStatus(user)" 
-                      :class="['btn-status', user.status === 'Activo' ? 'deactivate' : 'activate']"
-                    >
-                      {{ user.status === 'Activo' ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
                 </td>
               </tr>
             </tbody>
@@ -94,42 +78,34 @@
 
     <Modal :show="isModalVisible" @close="closeModal">
       <template v-slot:header>
-        <h3>{{ isEditMode ? 'Editar Usuario del Sistema' : 'Dar de Alta Usuario' }}</h3>
+        <h3>Dar de Alta Nuevo Usuario</h3>
       </template>
-      
       <template v-slot:body>
-        <form>
+        <form @submit.prevent>
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Usuario (@ID) *</label>
+            <input type="text" v-model="form._id" class="styled-input" required>
+          </div>
           <div class="form-group mb-3">
             <label class="font-weight-bold">Nombre</label>
-            <input type="text" v-model="form.name" class="styled-input">
+            <input type="text" v-model="form.nombre" class="styled-input">
           </div>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">Email</label>
-            <input type="email" v-model="form.email" class="styled-input">
+            <label class="font-weight-bold">ID</label>
+            <input type="text" v-model="form.id" class="styled-input">
           </div>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">Rol</label>
-            <div class="select-wrapper">
-              <select v-model="form.role" class="styled-input">
-                <option value="Administrador">Administrador</option>
-                <option value="Operador">Operador</option>
-                <option value="Auditor">Auditor</option>
-              </select>
-            </div>
+            <label class="font-weight-bold">Contraseña *</label>
+            <input type="password" v-model="form.contrasena" class="styled-input" required>
           </div>
-          <div class="form-group mb-2" v-if="!isEditMode || showPasswordFields">
-            <label class="font-weight-bold">Contraseña</label>
-            <input type="password" v-model="form.password" class="styled-input">
-          </div>
-          <button v-if="isEditMode" @click.prevent="showPasswordFields = !showPasswordFields" class="btn-link">
-            {{ showPasswordFields ? 'Ocultar campos de contraseña' : 'Cambiar Contraseña' }}
-          </button>
+          <div v-if="saveMessage" :class="['pass-message', saveMessageType]">{{ saveMessage }}</div>
         </form>
       </template>
-      
       <template v-slot:footer>
         <button @click="closeModal" class="btn-cancel">Cancelar</button>
-        <button @click="saveUser" class="btn-verify">Guardar Usuario</button>
+        <button @click="saveUser" class="btn-verify" :disabled="saveLoading">
+          {{ saveLoading ? 'Guardando...' : 'Crear Usuario' }}
+        </button>
       </template>
     </Modal>
   </div>
@@ -149,18 +125,38 @@ export default {
       passMessage: '',
       passMessageType: 'success',
       passLoading: false,
-      systemUsers: [
-        { id: 1, name: 'Admin Principal', email: 'admin@example.com', role: 'Administrador', status: 'Activo', lastLogin: '2025-10-14 10:00:00' },
-        { id: 2, name: 'Operador Ventas', email: 'op_ventas@example.com', role: 'Operador', status: 'Inactivo', lastLogin: '2025-09-01 12:30:00' },
-        { id: 3, name: 'Auditor Externo', email: 'auditor@example.com', role: 'Auditor', status: 'Activo', lastLogin: '2025-10-13 14:00:00' },
-      ],
+      pusers: [],
+      loadingPusers: false,
+      pusersError: '',
       isModalVisible: false,
-      isEditMode: false,
-      showPasswordFields: false,
-      form: { id: null, name: '', email: '', role: 'Operador', password: '' }
+      saveLoading: false,
+      saveMessage: '',
+      saveMessageType: 'success',
+      form: { _id: '', nombre: '', id: '', contrasena: '' }
     };
   },
+  mounted() {
+    this.loadPusers();
+  },
   methods: {
+    async loadPusers() {
+      this.loadingPusers = true;
+      this.pusersError = '';
+      try {
+        const data = await apiService.getPusers();
+        const sorted = [...data].sort((a, b) => {
+          const da = a.last_login || '';
+          const db = b.last_login || '';
+          return db.localeCompare(da);
+        });
+        this.pusers = sorted.slice(0, 10);
+      } catch {
+        this.pusersError = 'No se pudo cargar la lista de usuarios.';
+      } finally {
+        this.loadingPusers = false;
+      }
+    },
+
     async submitChangePassword() {
       if (this.passForm.newPass !== this.passForm.confirmPass) {
         this.passMessage = 'Las contraseñas no coinciden.';
@@ -183,40 +179,42 @@ export default {
         this.passLoading = false;
       }
     },
+
     openCreateUserModal() {
-      this.isEditMode = false;
-      this.showPasswordFields = true;
-      this.form = { id: null, name: '', email: '', role: 'Operador', password: '' };
+      this.form = { _id: '', nombre: '', id: '', contrasena: '' };
+      this.saveMessage = '';
       this.isModalVisible = true;
     },
-    openEditModal(user) {
-      this.isEditMode = true;
-      this.showPasswordFields = false;
-      this.form = { ...user, password: '' }; 
-      this.isModalVisible = true;
-    },
+
     closeModal() {
       this.isModalVisible = false;
-      this.showPasswordFields = false;
     },
+
     async saveUser() {
-      if (this.form.password && this.form.password.trim()) {
-        const adminUser = sessionStorage.getItem('app_user') || '';
-        try {
-          await apiService.changePassword(adminUser, this.form.id || this.form.name, this.form.password);
-          alert(this.isEditMode ? 'Contraseña actualizada con éxito.' : 'Usuario dado de alta con éxito.');
-        } catch {
-          alert('Error al cambiar la contraseña. Inténtalo de nuevo.');
-          return;
-        }
-      } else {
-        alert(this.isEditMode ? 'Usuario actualizado con éxito.' : 'Usuario dado de alta con éxito.');
+      if (!this.form._id || !this.form.contrasena) {
+        this.saveMessage = 'El usuario (@ID) y la contraseña son obligatorios.';
+        this.saveMessageType = 'error';
+        return;
       }
-      this.closeModal();
-    },
-    toggleStatus(user) {
-      user.status = user.status === 'Activo' ? 'Inactivo' : 'Activo';
-      alert(`Usuario ${user.name} ha sido ${user.status === 'Activo' ? 'activado' : 'desactivado'} (Simulación).`);
+      this.saveLoading = true;
+      this.saveMessage = '';
+      try {
+        await apiService.createPuser({
+          _id: this.form._id,
+          nombre: this.form.nombre,
+          id: this.form.id,
+          contrasena: this.form.contrasena
+        });
+        this.saveMessage = 'Usuario creado exitosamente.';
+        this.saveMessageType = 'success';
+        await this.loadPusers();
+        setTimeout(() => this.closeModal(), 1200);
+      } catch (e) {
+        this.saveMessage = 'Error al crear el usuario. Verifica los datos.';
+        this.saveMessageType = 'error';
+      } finally {
+        this.saveLoading = false;
+      }
     }
   }
 };
@@ -224,201 +222,49 @@ export default {
 
 <style scoped>
 .settings-page {
-  max-width: 1000px;
+  max-width: 1100px;
   margin: 40px auto;
   padding: 0 20px;
   font-family: 'Inter', sans-serif;
   color: #2d3748;
 }
-
-.settings-header {
-  margin-bottom: 30px;
-  text-align: center;
-}
-
-.settings-header h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #1a202c;
-  margin-bottom: 8px;
-}
-
-.settings-header p {
-  color: #718096;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #edf2f7;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.card-header h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.icon-circle {
-  width: 36px;
-  height: 36px;
-  background: #ebf8ff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.settings-header { margin-bottom: 30px; text-align: center; }
+.settings-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a202c; margin-bottom: 8px; }
+.settings-header p { color: #718096; }
+.card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); border: 1px solid #edf2f7; }
+.card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.card-header h3 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+.d-flex { display: flex; }
+.justify-content-between { justify-content: space-between; }
+.align-items-center { align-items: center; }
+.icon-circle { width: 36px; height: 36px; background: #ebf8ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .bg-blue { background: #ebf8ff; color: #4299e1; }
-
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.custom-table th {
-  background-color: #f7fafc;
-  padding: 15px;
-  text-align: left;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #718096;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.custom-table td {
-  padding: 15px;
-  border-bottom: 1px solid #edf2f7;
-  font-size: 0.95rem;
-}
-
-.role-badge {
-  background: #f7fafc;
-  color: #4a5568;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border: 1px solid #e2e8f0;
-}
-
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
+.custom-table { width: 100%; border-collapse: collapse; }
+.custom-table th { background: #f7fafc; padding: 15px; text-align: left; font-size: 0.85rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .025em; }
+.custom-table td { padding: 15px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem; }
+.status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
 .status-badge.success { background: #f0fff4; color: #2f855a; }
-.status-badge.error { background: #fff5f5; color: #c53030; }
-
-.btn-group {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
-.btn-action {
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.btn-action.edit { background: #ebf8ff; color: #3182ce; }
-
-.btn-status {
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  min-width: 90px;
-}
-
-.btn-status.deactivate { background: #fff5f5; color: #e53e3e; }
-.btn-status.activate { background: #f0fff4; color: #38a169; }
-
-.btn-verify {
-  background: #4299e1;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-verify:hover { background: #3182ce; }
-
-.btn-cancel {
-  background: #edf2f7;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-cancel:hover { background: #e2e8f0; }
-
-.btn-link {
-  background: none;
-  border: none;
-  color: #4299e1;
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0;
-  margin-top: 5px;
-}
-
-
-.styled-input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 2px solid #edf2f7;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-.styled-input:focus {
-  outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-}
-
-.text-right { text-align: right; }
+.status-badge.neutral { background: #f7fafc; color: #718096; }
 .table-responsive { width: 100%; overflow-x: auto; }
-
+.btn-verify { background: #4299e1; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+.btn-verify:hover { background: #3182ce; }
+.btn-verify:active { background: #2b6cb0; }
+.btn-cancel { background: #edf2f7; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-cancel:hover { background: #e2e8f0; }
+.styled-input { width: 100%; padding: 10px 14px; border: 2px solid #edf2f7; border-radius: 8px; font-size: 0.95rem; box-sizing: border-box; transition: all 0.2s; }
+.styled-input:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,.15); }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.font-weight-bold { font-weight: 700; font-size: 0.85rem; color: #4a5568; text-transform: uppercase; letter-spacing: .025em; }
 .change-pass-form { max-width: 400px; }
-
-.pass-message {
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
+.pass-message { padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; margin-bottom: 12px; }
 .pass-message.success { background: #f0fff4; color: #2f855a; border: 1px solid #9ae6b4; }
 .pass-message.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
-
+.mb-3 { margin-bottom: 12px; }
 .mb-4 { margin-bottom: 1rem; }
 .p-4  { padding: 1rem; }
+.text-muted { color: #718096; }
+.small { font-size: 0.9rem; }
+.text-center { text-align: center; }
+.py-5 { padding-top: 2rem; padding-bottom: 2rem; }
+.font-weight-bold { font-weight: 600; }
 </style>

@@ -88,26 +88,25 @@ export default {
       ipsChartInstance: null
     };
   },
-  async mounted() {
+  mounted() {
     this._isMounted = true;
-    await this.loadDashboardData();
+    const cached = this.getCachedData();
+    if (cached) this.applyData(cached);
+    this.loadFreshData();
+    this._refreshInterval = setInterval(() => this.loadFreshData(), CACHE_TTL_MS);
   },
   beforeUnmount() {
     this._isMounted = false;
-    if (this.trendsChartInstance) { this.trendsChartInstance.destroy(); this.trendsChartInstance = null; }
-    if (this.ipsChartInstance)    { this.ipsChartInstance.destroy();    this.ipsChartInstance = null; }
+    clearInterval(this._refreshInterval);
+    if (this.trendsChartInstance) { this.trendsChartInstance.stop(); this.trendsChartInstance.destroy(); this.trendsChartInstance = null; }
+    if (this.ipsChartInstance)    { this.ipsChartInstance.stop();    this.ipsChartInstance.destroy();    this.ipsChartInstance = null; }
   },
   methods: {
     getCachedData() {
       try {
         const raw = localStorage.getItem(CACHE_KEY);
         if (!raw) return null;
-        const { timestamp, data } = JSON.parse(raw);
-        if (Date.now() - timestamp > CACHE_TTL_MS) {
-          localStorage.removeItem(CACHE_KEY);
-          return null;
-        }
-        return data;
+        return JSON.parse(raw).data ?? null;
       } catch {
         return null;
       }
@@ -131,19 +130,10 @@ export default {
       });
     },
 
-    async loadDashboardData() {
-      const cached = this.getCachedData();
-
-      if (cached) {
-        this.applyData(cached);
-        return;
-      }
-
+    async loadFreshData() {
       try {
         const response = await apiService.getData('GET_DASHBOARD');
-
         if (!this._isMounted) return;
-
         if (response && response.data && response.data.kpis) {
           const data = response.data;
           this.setCachedData(data);

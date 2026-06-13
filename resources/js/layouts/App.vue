@@ -22,13 +22,16 @@
           <router-link to="/historial">Historial de Conexiones</router-link>
         </li>
         <li>
-          <router-link to="/ajustes">Ajustes de Conexiones</router-link>
-        </li>
-        <li>
           <router-link to="/administracion">Administración</router-link>
         </li>
         <li>
           <router-link to="/seguridad">Seguridad</router-link>
+        </li>
+        <li>
+          <router-link to="/config-reportes">Config. Reportes</router-link>
+        </li>
+        <li>
+          <router-link to="/servicios">Servicios</router-link>
         </li>
         <li class="logout-item">
           <a @click.prevent="logout" href="#">Cerrar Sesión</a>
