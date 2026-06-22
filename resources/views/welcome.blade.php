@@ -6,7 +6,7 @@
         <title>Gestión de Conexiones</title>
         <style>
           /* Reseteo básico para que el layout ocupe toda la pantalla */
-          body { margin: 0; }
+        body { margin: 0; }
         </style>
         @vite('resources/js/app.js')
     </head>
