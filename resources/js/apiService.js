@@ -185,8 +185,16 @@ async getPusers() {
     return Array.isArray(d) ? d : (Array.isArray(d?.Pusers) ? d.Pusers : []);
 },
 
-async createPuser(data) {
-    const response = await apiClient.post('/Pusers', data);
+async adminPusers(opcion, payload) {
+    const response = await apiClient.post('/subroutine/ADMIN.PUSERS', {
+        'OPCION': String(opcion),
+        'ADM.USR': payload.admUsr,
+        'USUARIO': payload.usuario,
+        'NOMBRE':  payload.nombre  || '',
+        'CLAVE':   payload.clave   || '',
+        'ROL':     payload.rol     || '',
+        'ACTIVO':  payload.activo  || '1'
+    });
     return response.data;
 },
 

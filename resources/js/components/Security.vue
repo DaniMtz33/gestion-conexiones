@@ -52,11 +52,12 @@
                 <th>LAST LOGIN</th>
                 <th>LOGIN ATTEMPT</th>
                 <th>LOGGED</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="pusers.length === 0">
-                <td colspan="6" class="text-center py-5 text-muted">No se encontraron usuarios</td>
+                <td colspan="7" class="text-center py-5 text-muted">No se encontraron usuarios</td>
               </tr>
               <tr v-for="u in pusers" :key="u._id">
                 <td class="font-weight-bold">{{ u._id }}</td>
@@ -69,6 +70,9 @@
                     {{ u.logged === '1' ? 'SI' : 'NO' }}
                   </span>
                 </td>
+                <td>
+                  <button @click="openEditUserModal(u)" class="btn-edit">Editar</button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -78,25 +82,47 @@
 
     <Modal :show="isModalVisible" @close="closeModal">
       <template v-slot:header>
-        <h3>Dar de Alta Nuevo Usuario</h3>
+        <h3>{{ editMode ? 'Editar Usuario' : 'Dar de Alta Nuevo Usuario' }}</h3>
       </template>
       <template v-slot:body>
         <form @submit.prevent>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">Usuario (@ID) *</label>
-            <input type="text" v-model="form._id" class="styled-input" required>
+            <label class="font-weight-bold">Usuario *</label>
+            <input
+              type="text"
+              v-model="form.usuario"
+              class="styled-input"
+              placeholder="Ej. JPEREZ"
+              :disabled="editMode"
+              :class="{ 'input-disabled': editMode }"
+              required
+            >
           </div>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">Nombre</label>
-            <input type="text" v-model="form.nombre" class="styled-input">
+            <label class="font-weight-bold">Nombre completo *</label>
+            <input type="text" v-model="form.nombre" class="styled-input" placeholder="Ej. Juan Pérez García" required>
           </div>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">ID</label>
-            <input type="text" v-model="form.id" class="styled-input">
+            <label class="font-weight-bold">Contraseña {{ editMode ? '(dejar vacío para no cambiar)' : '*' }}</label>
+            <input type="password" v-model="form.clave" class="styled-input" :required="!editMode">
           </div>
           <div class="form-group mb-3">
-            <label class="font-weight-bold">Contraseña *</label>
-            <input type="password" v-model="form.contrasena" class="styled-input" required>
+            <label class="font-weight-bold">Rol *</label>
+            <select v-model="form.rol" class="styled-input" required>
+              <option value="" disabled>Selecciona un rol</option>
+              <option value="ADMINISTRADOR">Administrador</option>
+              <option value="OPERADOR">Operador</option>
+            </select>
+          </div>
+          <div class="form-group mb-3">
+            <label class="font-weight-bold">Estado *</label>
+            <select v-model="form.activo" class="styled-input" required>
+              <option value="1">Activo</option>
+              <option value="2">Desactivado</option>
+            </select>
+          </div>
+          <div class="form-info mb-3">
+            <span class="info-icon">ℹ️</span> Alta realizada por: <strong>{{ currentUser }}</strong>
           </div>
           <div v-if="saveMessage" :class="['pass-message', saveMessageType]">{{ saveMessage }}</div>
         </form>
@@ -104,7 +130,7 @@
       <template v-slot:footer>
         <button @click="closeModal" class="btn-cancel">Cancelar</button>
         <button @click="saveUser" class="btn-verify" :disabled="saveLoading">
-          {{ saveLoading ? 'Guardando...' : 'Crear Usuario' }}
+          {{ saveLoading ? 'Guardando...' : (editMode ? 'Guardar Cambios' : 'Crear Usuario') }}
         </button>
       </template>
     </Modal>
@@ -132,7 +158,8 @@ export default {
       saveLoading: false,
       saveMessage: '',
       saveMessageType: 'success',
-      form: { _id: '', nombre: '', id: '', contrasena: '' }
+      form: { usuario: '', nombre: '', clave: '', rol: '', activo: '1' },
+      editMode: false
     };
   },
   mounted() {
@@ -181,7 +208,21 @@ export default {
     },
 
     openCreateUserModal() {
-      this.form = { _id: '', nombre: '', id: '', contrasena: '' };
+      this.editMode = false;
+      this.form = { usuario: '', nombre: '', clave: '', rol: '', activo: '1' };
+      this.saveMessage = '';
+      this.isModalVisible = true;
+    },
+
+    openEditUserModal(u) {
+      this.editMode = true;
+      this.form = {
+        usuario: u._id || '',
+        nombre:  u.nombre || '',
+        clave:   '',
+        rol:     u.rol || '',
+        activo:  u.activo || '1'
+      };
       this.saveMessage = '';
       this.isModalVisible = true;
     },
@@ -191,26 +232,38 @@ export default {
     },
 
     async saveUser() {
-      if (!this.form._id || !this.form.contrasena) {
-        this.saveMessage = 'El usuario (@ID) y la contraseña son obligatorios.';
+      if (!this.editMode && (!this.form.usuario || !this.form.nombre || !this.form.clave || !this.form.rol)) {
+        this.saveMessage = 'Usuario, nombre, contraseña y rol son obligatorios.';
+        this.saveMessageType = 'error';
+        return;
+      }
+      if (this.editMode && !this.form.usuario) {
+        this.saveMessage = 'El usuario es obligatorio.';
         this.saveMessageType = 'error';
         return;
       }
       this.saveLoading = true;
       this.saveMessage = '';
       try {
-        await apiService.createPuser({
-          _id: this.form._id,
-          nombre: this.form.nombre,
-          id: this.form.id,
-          contrasena: this.form.contrasena
-        });
-        this.saveMessage = 'Usuario creado exitosamente.';
+        const opcion = this.editMode ? 2 : 1;
+        const payload = {
+          admUsr:  this.currentUser,
+          usuario: this.form.usuario,
+          nombre:  this.form.nombre,
+          rol:     this.form.rol,
+          activo:  this.form.activo
+        };
+        if (this.form.clave) payload.clave = this.form.clave;
+
+        await apiService.adminPusers(opcion, payload);
+        this.saveMessage = this.editMode ? 'Usuario actualizado exitosamente.' : 'Usuario creado exitosamente.';
         this.saveMessageType = 'success';
         await this.loadPusers();
-        setTimeout(() => this.closeModal(), 1200);
-      } catch (e) {
-        this.saveMessage = 'Error al crear el usuario. Verifica los datos.';
+        setTimeout(() => this.closeModal(), 1500);
+      } catch {
+        this.saveMessage = this.editMode
+          ? 'Error al actualizar el usuario. Verifica los datos e intenta de nuevo.'
+          : 'Error al crear el usuario. Verifica los datos e intenta de nuevo.';
         this.saveMessageType = 'error';
       } finally {
         this.saveLoading = false;
@@ -260,6 +313,10 @@ export default {
 .pass-message.success { background: #f0fff4; color: #2f855a; border: 1px solid #9ae6b4; }
 .pass-message.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
 .mb-3 { margin-bottom: 12px; }
+.form-info { font-size: 0.85rem; color: #718096; background: #f7fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #edf2f7; }
+.btn-edit { background: #ebf8ff; color: #3182ce; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-edit:hover { background: #bee3f8; }
+.input-disabled { background: #f7fafc; color: #718096; cursor: not-allowed; }
 .mb-4 { margin-bottom: 1rem; }
 .p-4  { padding: 1rem; }
 .text-muted { color: #718096; }
