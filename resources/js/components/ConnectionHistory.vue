@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page">
+  <div class="settings-page" @click="closeExportMenu">
     <header class="settings-header">
       <h1>Historial de Conexiones</h1>
       <p>Registro histórico de todos los intentos de conexión al servidor.</p>
@@ -42,8 +42,30 @@
           <div class="header-right">
             <span class="records-count">{{ filteredConnections.length }} resultados</span>
             <span class="page-info">Página {{ currentPage }} de {{ totalPages }}</span>
+            <div class="export-wrapper" @click.stop>
+              <button ref="exportBtn" class="btn-export" :disabled="filteredConnections.length === 0" @click="toggleExportMenu">
+                ⬇ Exportar <span class="arrow">▾</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        <Teleport to="body">
+          <div v-if="showExportMenu" class="export-dropdown-portal" :style="exportDropdownStyle" @click.stop>
+            <button class="export-option" @click="exportPDF">
+              <span class="opt-icon">📄</span>
+              <span class="opt-label"><strong>PDF</strong><small>Tabla formateada lista para imprimir</small></span>
+            </button>
+            <button class="export-option" @click="exportCSV">
+              <span class="opt-icon">📊</span>
+              <span class="opt-label"><strong>CSV</strong><small>Compatible con Excel y Google Sheets</small></span>
+            </button>
+            <button class="export-option" @click="exportTXT">
+              <span class="opt-icon">📝</span>
+              <span class="opt-label"><strong>TXT</strong><small>Tabla de texto con formato legible</small></span>
+            </button>
+          </div>
+        </Teleport>
 
         <div v-if="loading" class="p-4 text-center text-muted">Cargando registros...</div>
         <div v-else class="table-responsive">
@@ -112,9 +134,14 @@
 
 <script>
 import apiService from '../apiService';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const CACHE_KEY = 'history_cache';
 const REFRESH_MS = 5 * 60 * 1000;
+const EXP_COLS = ['Llave', 'Usuario', 'IP de Origen', 'Fecha y Hora', 'Resultado', 'Duración', 'Motivo'];
+const TODAY_STR = () => new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+const FILENAME = (ext) => `historial_conexiones_${new Date().toISOString().slice(0,10)}.${ext}`;
 
 export default {
   name: 'ConnectionHistory',
@@ -127,7 +154,9 @@ export default {
       sortField: null,
       sortDir: 'asc',
       currentPage: 1,
-      pageSize: 50
+      pageSize: 50,
+      showExportMenu: false,
+      exportDropdownStyle: {}
     };
   },
   computed: {
@@ -200,6 +229,67 @@ export default {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
       } catch { /* quota exceeded */ }
+    },
+
+    expRows() {
+      return this.filteredConnections.map(c => [
+        c.key || '', c.user || '', c.ip || '', c.timestamp || '',
+        c.status || '', c.duration || '', c.disconnectionReason || ''
+      ]);
+    },
+    toggleExportMenu() {
+      if (!this.showExportMenu) {
+        const rect = this.$refs.exportBtn.getBoundingClientRect();
+        this.exportDropdownStyle = { position: 'fixed', top: (rect.bottom + 6) + 'px', right: (window.innerWidth - rect.right) + 'px', zIndex: 9999 };
+      }
+      this.showExportMenu = !this.showExportMenu;
+    },
+    closeExportMenu() { this.showExportMenu = false; },
+    dlBlob(content, filename, mime) {
+      const url = URL.createObjectURL(new Blob([content], { type: mime }));
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url); this.showExportMenu = false;
+    },
+    exportPDF() {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFillColor(66, 153, 225); doc.rect(0, 0, 297, 22, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+      doc.text('Gestión RPC — Historial de Conexiones', 14, 14);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(TODAY_STR(), 283, 14, { align: 'right' });
+      doc.setFillColor(235, 248, 255); doc.rect(0, 22, 297, 8, 'F');
+      doc.setTextColor(45, 55, 72); doc.setFontSize(8);
+      doc.text(`Registros mostrados: ${this.filteredConnections.length}`, 14, 27.5);
+      autoTable(doc, {
+        startY: 32, head: [EXP_COLS], body: this.expRows(),
+        styles: { fontSize: 8, cellPadding: 3, lineColor: [237,242,247], lineWidth: 0.3, textColor: [45,55,72] },
+        headStyles: { fillColor: [26,32,44], textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+        alternateRowStyles: { fillColor: [247,250,252] },
+        didDrawPage: (d) => {
+          doc.setFontSize(7); doc.setTextColor(160,174,192);
+          doc.text(`Página ${d.pageNumber} de ${doc.internal.getNumberOfPages()}`, d.settings.margin.left, doc.internal.pageSize.height - 5);
+          doc.text('Gestión RPC', 283, doc.internal.pageSize.height - 5, { align: 'right' });
+        }
+      });
+      doc.save(FILENAME('pdf')); this.showExportMenu = false;
+    },
+    exportCSV() {
+      const esc = v => { const s = String(v ?? '').replace(/"/g, '""'); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s; };
+      const lines = [`# Gestión RPC — Historial de Conexiones`, `# Generado: ${TODAY_STR()}`, `# Registros: ${this.filteredConnections.length}`, '', EXP_COLS.join(','), ...this.expRows().map(r => r.map(esc).join(','))];
+      this.dlBlob('﻿' + lines.join('\r\n'), FILENAME('csv'), 'text/csv;charset=utf-8;');
+    },
+    exportTXT() {
+      const rows = this.expRows();
+      const widths = EXP_COLS.map((c, i) => Math.max(c.length, ...rows.map(r => String(r[i] ?? '').length)));
+      const pad = (s, l) => String(s ?? '').padEnd(l);
+      const sep = '+' + widths.map(w => '-'.repeat(w + 2)).join('+') + '+';
+      const lines = [
+        '='.repeat(sep.length), `  GESTIÓN RPC — HISTORIAL DE CONEXIONES`, `  Generado: ${TODAY_STR()}`, `  Registros: ${this.filteredConnections.length}`, '='.repeat(sep.length), '',
+        sep, '| ' + EXP_COLS.map((c, i) => pad(c, widths[i])).join(' | ') + ' |', sep.replace(/-/g, '='),
+        ...rows.flatMap(r => ['| ' + r.map((c, i) => pad(c, widths[i])).join(' | ') + ' |', sep]),
+        '', 'Fin del reporte.'
+      ];
+      this.dlBlob(lines.join('\r\n'), FILENAME('txt'), 'text/plain;charset=utf-8;');
     },
 
     defaultDateRange() {
@@ -337,8 +427,25 @@ export default {
 .text-muted { color: #718096; }
 .py-5 { padding-top: 2rem; padding-bottom: 2rem; }
 .font-weight-bold { font-weight: 600; }
+.btn-export { background: #4299e1; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: background .15s; white-space: nowrap; }
+.btn-export:hover:not(:disabled) { background: #3182ce; }
+.btn-export:disabled { opacity: .4; cursor: not-allowed; }
+.arrow { font-size: .7rem; }
+.export-wrapper { position: relative; }
 @media (max-width: 768px) {
   .search-box { flex-direction: column; align-items: stretch; }
   .date-input-wrapper { max-width: 100%; }
 }
+</style>
+
+<style>
+.export-dropdown-portal { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); min-width: 240px; }
+.export-dropdown-portal .export-option { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; background: none; border: none; border-bottom: 1px solid #f0f4f8; cursor: pointer; text-align: left; transition: background .12s; box-sizing: border-box; }
+.export-dropdown-portal .export-option:first-child { border-radius: 10px 10px 0 0; }
+.export-dropdown-portal .export-option:last-child { border-bottom: none; border-radius: 0 0 10px 10px; }
+.export-dropdown-portal .export-option:hover { background: #ebf8ff; }
+.export-dropdown-portal .opt-icon { font-size: 1.3rem; flex-shrink: 0; }
+.export-dropdown-portal .opt-label { display: flex; flex-direction: column; }
+.export-dropdown-portal .opt-label strong { font-size: .9rem; color: #1a202c; }
+.export-dropdown-portal .opt-label small { font-size: .75rem; color: #718096; margin-top: 2px; }
 </style>

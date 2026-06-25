@@ -22,9 +22,6 @@
           <router-link to="/historial">Historial de Conexiones</router-link>
         </li>
         <li>
-          <router-link to="/administracion">Administración</router-link>
-        </li>
-        <li>
           <router-link to="/seguridad">Seguridad</router-link>
         </li>
         <li>

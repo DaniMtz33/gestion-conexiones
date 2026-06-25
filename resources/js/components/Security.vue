@@ -31,11 +31,11 @@
         </div>
       </section>
 
-      <section class="card p-0 overflow-hidden">
+      <section class="card p-0 overflow-hidden mb-4">
         <div class="card-header p-4 d-flex justify-content-between align-items-center">
           <div style="display:flex;align-items:center;gap:12px;">
             <div class="icon-circle bg-blue"><i class="icon">🔒</i></div>
-            <h3>Usuarios del Sistema (últimos 10 por último login)</h3>
+            <h3>Últimos 10 Logins</h3>
           </div>
           <button @click="openCreateUserModal" class="btn-verify">+ Dar de Alta</button>
         </div>
@@ -73,6 +73,37 @@
                 <td>
                   <button @click="openEditUserModal(u)" class="btn-edit">Editar</button>
                 </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card p-0 overflow-hidden">
+        <div class="card-header p-4">
+          <div class="icon-circle bg-blue"><i class="icon">✏️</i></div>
+          <h3>Últimas 10 Modificaciones</h3>
+          <span class="records-count-mod">{{ modLog.length }} registros</span>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Fecha / Hora</th>
+                <th>Administrador</th>
+                <th>Usuario Modificado</th>
+                <th>Cambios Realizados</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="modLog.length === 0">
+                <td colspan="4" class="text-center py-5 text-muted">No hay modificaciones registradas en esta sesión</td>
+              </tr>
+              <tr v-for="(m, i) in modLog" :key="i">
+                <td class="text-mono">{{ m.fecha }}</td>
+                <td class="font-weight-bold">{{ m.admin }}</td>
+                <td>{{ m.usuario }}</td>
+                <td class="cambios-cell">{{ m.cambios }}</td>
               </tr>
             </tbody>
           </table>
@@ -159,7 +190,9 @@ export default {
       saveMessage: '',
       saveMessageType: 'success',
       form: { usuario: '', nombre: '', clave: '', rol: '', activo: '1' },
-      editMode: false
+      editMode: false,
+      originalForm: {},
+      modLog: JSON.parse(localStorage.getItem('security_modlog') || '[]')
     };
   },
   mounted() {
@@ -216,13 +249,8 @@ export default {
 
     openEditUserModal(u) {
       this.editMode = true;
-      this.form = {
-        usuario: u._id || '',
-        nombre:  u.nombre || '',
-        clave:   '',
-        rol:     u.rol || '',
-        activo:  u.activo || '1'
-      };
+      this.form = { usuario: u._id || '', nombre: u.nombre || '', clave: '', rol: u.rol || '', activo: u.activo || '1' };
+      this.originalForm = { nombre: u.nombre || '', rol: u.rol || '', activo: u.activo || '1' };
       this.saveMessage = '';
       this.isModalVisible = true;
     },
@@ -258,6 +286,16 @@ export default {
         await apiService.adminPusers(opcion, payload);
         this.saveMessage = this.editMode ? 'Usuario actualizado exitosamente.' : 'Usuario creado exitosamente.';
         this.saveMessageType = 'success';
+        if (this.editMode) {
+          const cambios = [];
+          if (this.form.nombre !== this.originalForm.nombre) cambios.push(`NOMBRE: "${this.originalForm.nombre}" → "${this.form.nombre}"`);
+          if (this.form.rol    !== this.originalForm.rol)    cambios.push(`ROL: "${this.originalForm.rol}" → "${this.form.rol}"`);
+          if (this.form.activo !== this.originalForm.activo) cambios.push(`ACTIVO: ${this.originalForm.activo === '1' ? 'Activo' : 'Desactivado'} → ${this.form.activo === '1' ? 'Activo' : 'Desactivado'}`);
+          if (this.form.clave) cambios.push('CLAVE: (actualizada)');
+          this.modLog.unshift({ fecha: new Date().toLocaleString('es-MX'), admin: this.currentUser, usuario: this.form.usuario, cambios: cambios.length ? cambios.join(' | ') : 'Sin cambios detectados' });
+          if (this.modLog.length > 10) this.modLog = this.modLog.slice(0, 10);
+          localStorage.setItem('security_modlog', JSON.stringify(this.modLog));
+        }
         await this.loadPusers();
         setTimeout(() => this.closeModal(), 1500);
       } catch {
@@ -314,6 +352,15 @@ export default {
 .pass-message.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
 .mb-3 { margin-bottom: 12px; }
 .form-info { font-size: 0.85rem; color: #718096; background: #f7fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #edf2f7; }
+.records-count-mod { margin-left: auto; background: #f7fafc; padding: 4px 12px; border-radius: 20px; font-size: .85rem; color: #718096; font-weight: 500; }
+.cambios-cell { font-size: 0.85rem; color: #4a5568; max-width: 320px; word-break: break-word; }
+.accion-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.accion-login   { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+.accion-logout  { background: #fefcbf; color: #744210; border: 1px solid #f6e05e; }
+.accion-create  { background: #faf5ff; color: #553c9a; border: 1px solid #d6bcfa; }
+.accion-update  { background: #ebf8ff; color: #2b6cb0; border: 1px solid #90cdf4; }
+.accion-delete  { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+.accion-default { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; }
 .btn-edit { background: #ebf8ff; color: #3182ce; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-edit:hover { background: #bee3f8; }
 .input-disabled { background: #f7fafc; color: #718096; cursor: not-allowed; }

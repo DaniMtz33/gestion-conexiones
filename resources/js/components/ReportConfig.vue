@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page" @click="closeExportMenu">
+  <div class="settings-page">
     <header class="settings-header">
       <h1>Configuración de Reportes</h1>
       <p>Gestión de reportes automáticos y sus destinatarios.</p>
@@ -11,43 +11,7 @@
           <div class="icon-circle"><i>📋</i></div>
           <h3>Reportes Configurados</h3>
           <span class="records-count">{{ reportes.length }} registros</span>
-
-          <div class="export-wrapper" @click.stop>
-            <button
-              ref="exportBtn"
-              class="btn-export"
-              :disabled="reportes.length === 0"
-              @click="toggleExportMenu"
-            >
-              ⬇ Exportar <span class="arrow">▾</span>
-            </button>
-          </div>
-
-          <Teleport to="body">
-            <div v-if="showExportMenu" class="export-dropdown-portal" :style="dropdownStyle" @click.stop>
-              <button class="export-option" @click="exportPDF">
-                <span class="opt-icon">📄</span>
-                <span class="opt-label">
-                  <strong>PDF</strong>
-                  <small>Tabla formateada lista para imprimir</small>
-                </span>
-              </button>
-              <button class="export-option" @click="exportCSV">
-                <span class="opt-icon">📊</span>
-                <span class="opt-label">
-                  <strong>CSV</strong>
-                  <small>Compatible con Excel y Google Sheets</small>
-                </span>
-              </button>
-              <button class="export-option" @click="exportTXT">
-                <span class="opt-icon">📝</span>
-                <span class="opt-label">
-                  <strong>TXT</strong>
-                  <small>Tabla de texto con formato legible</small>
-                </span>
-              </button>
-            </div>
-          </Teleport>
+          <button @click="openModal()" class="btn-add">+ Agregar</button>
         </div>
 
         <div v-if="loading" class="p-4 text-center text-muted">Cargando reportes...</div>
@@ -62,11 +26,12 @@
                 <th>Destinatarios</th>
                 <th>Servicios Asociados</th>
                 <th>Activo</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="reportes.length === 0">
-                <td colspan="6" class="text-center py-5 text-muted">No se encontraron reportes configurados</td>
+                <td colspan="7" class="text-center py-5 text-muted">No se encontraron reportes configurados</td>
               </tr>
               <tr v-for="r in reportes" :key="r._id">
                 <td class="font-weight-bold">{{ r._id }}</td>
@@ -79,213 +44,139 @@
                     {{ r.activo === '1' ? 'SI' : 'NO' }}
                   </span>
                 </td>
+                <td><button @click="openModal(r)" class="btn-edit">Editar</button></td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
     </main>
+
+    <!-- Modal agregar/editar -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h3>{{ editMode ? 'Editar Reporte' : 'Agregar Reporte' }}</h3>
+          <button @click="closeModal" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group mb-3">
+            <label class="flabel">ID *</label>
+            <input type="text" v-model="form._id" class="styled-input" :disabled="editMode" :class="{ 'input-disabled': editMode }" required>
+          </div>
+          <div class="form-group mb-3">
+            <label class="flabel">Frecuencia</label>
+            <input type="text" v-model="form.frecuencia" class="styled-input" placeholder="Ej. DIARIO, SEMANAL">
+          </div>
+          <div class="form-group mb-3">
+            <label class="flabel">Formato</label>
+            <input type="text" v-model="form.formato" class="styled-input" placeholder="Ej. PDF, CSV">
+          </div>
+          <div class="form-group mb-3">
+            <label class="flabel">Destinatarios <small>(separados por coma)</small></label>
+            <input type="text" v-model="form.destinatarios" class="styled-input" placeholder="correo1@empresa.com, correo2@empresa.com">
+          </div>
+          <div class="form-group mb-3">
+            <label class="flabel">Servicios Asociados</label>
+            <input type="text" v-model="form.servicios_asociados" class="styled-input">
+          </div>
+          <div class="form-group mb-3">
+            <label class="flabel">Activo</label>
+            <select v-model="form.activo" class="styled-input">
+              <option value="1">SI</option>
+              <option value="0">NO</option>
+            </select>
+          </div>
+          <div v-if="modalMsg" :class="['modal-msg', modalMsgType]">{{ modalMsg }}</div>
+        </div>
+        <div class="modal-foot">
+          <button @click="closeModal" class="btn-cancel">Cancelar</button>
+          <button @click="saveReporte" class="btn-save" :disabled="saving">
+            {{ saving ? 'Guardando...' : (editMode ? 'Guardar Cambios' : 'Crear Reporte') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script>
 import apiService from '../apiService.js';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-const COLUMNS = ['ID', 'Frecuencia', 'Formato', 'Destinatarios', 'Servicios Asociados', 'Activo'];
-const TODAY = () => new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-const FILENAME = (ext) => `config_reportes_${new Date().toISOString().slice(0, 10)}.${ext}`;
 
 export default {
   name: 'ReportConfig',
   data() {
-    return { reportes: [], loading: false, error: '', showExportMenu: false, dropdownStyle: {} };
+    return {
+      reportes: [], loading: false, error: '',
+      showModal: false, editMode: false, saving: false,
+      modalMsg: '', modalMsgType: 'success',
+      form: { _id: '', frecuencia: '', formato: '', destinatarios: '', servicios_asociados: '', activo: '1' }
+    };
   },
-  mounted() {
-    this.loadReportes();
-  },
+  mounted() { this.loadReportes(); },
   methods: {
     async loadReportes() {
-      this.loading = true;
-      this.error = '';
-      try {
-        this.reportes = await apiService.getConfigReportes();
-      } catch {
-        this.error = 'No se pudo cargar la configuración de reportes.';
-      } finally {
-        this.loading = false;
-      }
+      this.loading = true; this.error = '';
+      try { this.reportes = await apiService.getConfigReportes(); }
+      catch { this.error = 'No se pudo cargar la configuración de reportes.'; }
+      finally { this.loading = false; }
     },
-
     formatDestinatarios(dest) {
       if (!dest) return '—';
       if (Array.isArray(dest)) return dest.flat().filter(Boolean).join(', ') || '—';
       return dest;
     },
-
-    rowData() {
-      return this.reportes.map(r => [
-        r._id || '',
-        r.frecuencia || '',
-        r.formato || '',
-        this.formatDestinatarios(r.destinatarios),
-        r.servicios_asociados || '',
-        r.activo === '1' ? 'SI' : 'NO'
-      ]);
+    openModal(r = null) {
+      this.editMode = !!r;
+      this.modalMsg = '';
+      this.form = r
+        ? { _id: r._id, frecuencia: r.frecuencia || '', formato: r.formato || '', destinatarios: this.formatDestinatarios(r.destinatarios), servicios_asociados: r.servicios_asociados || '', activo: r.activo || '1' }
+        : { _id: '', frecuencia: '', formato: '', destinatarios: '', servicios_asociados: '', activo: '1' };
+      this.showModal = true;
     },
-
-    toggleExportMenu() {
-      if (!this.showExportMenu) {
-        const rect = this.$refs.exportBtn.getBoundingClientRect();
-        this.dropdownStyle = {
-          position: 'fixed',
-          top: (rect.bottom + 6) + 'px',
-          right: (window.innerWidth - rect.right) + 'px',
-          zIndex: 9999
+    closeModal() { this.showModal = false; },
+    async saveReporte() {
+      if (!this.form._id) { this.modalMsg = 'El ID es obligatorio.'; this.modalMsgType = 'error'; return; }
+      this.saving = true; this.modalMsg = '';
+      try {
+        const destArray = this.form.destinatarios
+          ? this.form.destinatarios.split(',').map(s => s.trim()).filter(Boolean).map(e => [e])
+          : [];
+        const payload = {
+          frecuencia:          this.form.frecuencia,
+          formato:             this.form.formato,
+          destinatarios:       destArray,
+          servicios_asociados: this.form.servicios_asociados,
+          activo:              this.form.activo
         };
-      }
-      this.showExportMenu = !this.showExportMenu;
-    },
-    closeExportMenu() { this.showExportMenu = false; },
-
-    download(content, filename, mime) {
-      const blob = new Blob([content], { type: mime });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      this.showExportMenu = false;
-    },
-
-    exportPDF() {
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-      // Header band
-      doc.setFillColor(66, 153, 225);
-      doc.rect(0, 0, 297, 22, 'F');
-
-      // Title
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Gestión RPC — Configuración de Reportes', 14, 14);
-
-      // Date top-right
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(TODAY(), 283, 14, { align: 'right' });
-
-      // Subtitle bar
-      doc.setFillColor(235, 248, 255);
-      doc.rect(0, 22, 297, 8, 'F');
-      doc.setTextColor(45, 55, 72);
-      doc.setFontSize(8);
-      doc.text(`Total de registros: ${this.reportes.length}`, 14, 27.5);
-
-      autoTable(doc, {
-        startY: 32,
-        head: [COLUMNS],
-        body: this.rowData(),
-        styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          lineColor: [237, 242, 247],
-          lineWidth: 0.3,
-          textColor: [45, 55, 72]
-        },
-        headStyles: {
-          fillColor: [26, 32, 44],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9,
-          halign: 'left'
-        },
-        alternateRowStyles: { fillColor: [247, 250, 252] },
-        columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 30 },
-          5: { halign: 'center', cellWidth: 18 }
-        },
-        didDrawCell: (data) => {
-          if (data.section === 'body' && data.column.index === 5) {
-            const val = data.cell.raw;
-            const color = val === 'SI' ? [240, 255, 244] : [255, 245, 245];
-            const textColor = val === 'SI' ? [47, 133, 90] : [197, 48, 48];
-            doc.setFillColor(...color);
-            doc.roundedRect(data.cell.x + 2, data.cell.y + 2, data.cell.width - 4, data.cell.height - 4, 2, 2, 'F');
-            doc.setTextColor(...textColor);
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            doc.text(val, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' });
-          }
-        },
-        didDrawPage: (data) => {
-          const pageCount = doc.internal.getNumberOfPages();
-          doc.setFontSize(8);
-          doc.setTextColor(160, 174, 192);
-          doc.setFont('helvetica', 'normal');
-          doc.text(
-            `Página ${data.pageNumber} de ${pageCount}`,
-            data.settings.margin.left,
-            doc.internal.pageSize.height - 6
-          );
-          doc.text(
-            'Gestión RPC — Reporte generado automáticamente',
-            283,
-            doc.internal.pageSize.height - 6,
-            { align: 'right' }
-          );
+        if (this.editMode) {
+          // REST PUT — el proxy obtiene u2version automáticamente y añade If-Match
+          await apiService.updateConfigReporte(this.form._id, payload);
+        } else {
+          // Crear vía subrutina (no requiere If-Match)
+          await apiService.configRepo('POST', {
+            nombre:        this.form._id,
+            frecuencia:    this.form.frecuencia,
+            formato:       this.form.formato,
+            destinatarios: this.form.destinatarios,
+            servicios:     this.form.servicios_asociados,
+            activo:        this.form.activo
+          });
         }
-      });
-
-      doc.save(FILENAME('pdf'));
-      this.showExportMenu = false;
+        this.modalMsg = this.editMode ? 'Reporte actualizado.' : 'Reporte creado.';
+        this.modalMsgType = 'success';
+        await this.loadReportes();
+        setTimeout(() => this.closeModal(), 1200);
+      } catch (e) {
+        const status = e?.response?.status;
+        const msg = e?.response?.data?.errorDetailMessage || e?.response?.data?.message || e?.response?.data?.error || '';
+        this.modalMsg = `Error al guardar${status ? ` (${status})` : ''}${msg ? ': ' + msg : '.'}`;
+        this.modalMsgType = 'error';
+        console.error('saveReporte error:', e?.response ?? e);
+      } finally { this.saving = false; }
     },
 
-    exportCSV() {
-      const escape = v => {
-        const s = String(v ?? '').replace(/"/g, '""');
-        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
-      };
-      const lines = [
-        `# Gestión RPC — Configuración de Reportes`,
-        `# Generado: ${TODAY()}`,
-        `# Total de registros: ${this.reportes.length}`,
-        '',
-        COLUMNS.join(','),
-        ...this.rowData().map(row => row.map(escape).join(','))
-      ];
-      this.download('﻿' + lines.join('\r\n'), FILENAME('csv'), 'text/csv;charset=utf-8;');
-    },
-
-    exportTXT() {
-      const rows = this.rowData();
-      const widths = COLUMNS.map((col, i) =>
-        Math.max(col.length, ...rows.map(r => String(r[i] ?? '').length))
-      );
-      const pad = (str, len) => String(str ?? '').padEnd(len);
-      const separator = '+' + widths.map(w => '-'.repeat(w + 2)).join('+') + '+';
-      const headerRow = '| ' + COLUMNS.map((c, i) => pad(c, widths[i])).join(' | ') + ' |';
-      const dataRows = rows.map(r => '| ' + r.map((c, i) => pad(c, widths[i])).join(' | ') + ' |');
-
-      const lines = [
-        '='.repeat(separator.length),
-        `  GESTIÓN RPC — CONFIGURACIÓN DE REPORTES`,
-        `  Generado: ${TODAY()}`,
-        `  Total de registros: ${this.reportes.length}`,
-        '='.repeat(separator.length),
-        '',
-        separator,
-        headerRow,
-        separator.replace(/-/g, '='),
-        ...dataRows.flatMap(r => [r, separator]),
-        '',
-        `Fin del reporte.`
-      ];
-      this.download(lines.join('\r\n'), FILENAME('txt'), 'text/plain;charset=utf-8;');
-    }
   }
 };
 </script>
@@ -296,46 +187,45 @@ export default {
 .settings-header h1 { font-size: 1.8rem; font-weight: 700; color: #1a202c; margin-bottom: 8px; }
 .settings-header p { color: #718096; }
 .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1); border: 1px solid #edf2f7; }
-.card-header { display: flex; align-items: center; gap: 12px; padding: 1rem; margin-bottom: 0; }
+.card-header { display: flex; align-items: center; gap: 10px; padding: 1rem; }
 .card-header h3 { font-size: 1.05rem; font-weight: 600; margin: 0; }
 .icon-circle { width: 36px; height: 36px; background: #ebf8ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.records-count { background: #f7fafc; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; color: #718096; font-weight: 500; }
-
-.export-wrapper { margin-left: auto; position: relative; }
-.btn-export { background: #4299e1; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; white-space: nowrap; }
-.btn-export:hover:not(:disabled) { background: #3182ce; }
-.btn-export:disabled { opacity: .4; cursor: not-allowed; }
-.arrow { font-size: .7rem; }
-
-.opt-icon { font-size: 1.3rem; flex-shrink: 0; }
-.opt-label { display: flex; flex-direction: column; }
-.opt-label strong { font-size: .9rem; color: #1a202c; }
-.opt-label small { font-size: .75rem; color: #718096; margin-top: 1px; }
-
+.records-count { background: #f7fafc; padding: 4px 12px; border-radius: 20px; font-size: .85rem; color: #718096; font-weight: 500; }
+.btn-add { margin-left: auto; background: #48bb78; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: .88rem; font-weight: 600; cursor: pointer; transition: background .15s; white-space: nowrap; }
+.btn-add:hover { background: #38a169; }
+.btn-edit { background: #ebf8ff; color: #3182ce; border: none; padding: 5px 12px; border-radius: 6px; font-size: .83rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-edit:hover { background: #bee3f8; }
 .custom-table { width: 100%; border-collapse: collapse; }
-.custom-table th { background: #f7fafc; padding: 15px; text-align: left; font-size: 0.85rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .025em; }
-.custom-table td { padding: 15px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem; }
+.custom-table th { background: #f7fafc; padding: 13px 15px; text-align: left; font-size: .85rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .025em; }
+.custom-table td { padding: 13px 15px; border-bottom: 1px solid #edf2f7; font-size: .93rem; }
 .font-weight-bold { font-weight: 600; }
-.status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+.status-badge { padding: 4px 10px; border-radius: 6px; font-size: .8rem; font-weight: 600; }
 .status-badge.success { background: #f0fff4; color: #2f855a; }
 .status-badge.error { background: #fff5f5; color: #c53030; }
 .table-responsive { width: 100%; overflow-x: auto; }
 .text-center { text-align: center; }
 .text-muted { color: #718096; }
 .py-5 { padding-top: 2rem; padding-bottom: 2rem; }
-.p-4 { padding: 1rem; }
-.overflow-hidden { overflow: hidden; }
-.p-0 { padding: 0; }
-</style>
-
-<style>
-.export-dropdown-portal { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); min-width: 240px; }
-.export-dropdown-portal .export-option { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; background: none; border: none; border-bottom: 1px solid #f0f4f8; cursor: pointer; text-align: left; transition: background .12s; box-sizing: border-box; }
-.export-dropdown-portal .export-option:first-child { border-radius: 10px 10px 0 0; }
-.export-dropdown-portal .export-option:last-child { border-bottom: none; border-radius: 0 0 10px 10px; }
-.export-dropdown-portal .export-option:hover { background: #ebf8ff; }
-.export-dropdown-portal .opt-icon { font-size: 1.3rem; flex-shrink: 0; }
-.export-dropdown-portal .opt-label { display: flex; flex-direction: column; }
-.export-dropdown-portal .opt-label strong { font-size: .9rem; color: #1a202c; }
-.export-dropdown-portal .opt-label small { font-size: .75rem; color: #718096; margin-top: 2px; }
+.p-4 { padding: 1rem; } .p-0 { padding: 0; } .overflow-hidden { overflow: hidden; } .mb-3 { margin-bottom: 12px; }
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-box { background: #fff; border-radius: 12px; width: 500px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid #edf2f7; }
+.modal-head h3 { font-size: 1.05rem; font-weight: 700; margin: 0; }
+.modal-close { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #718096; }
+.modal-body { padding: 20px; max-height: 65vh; overflow-y: auto; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid #edf2f7; display: flex; justify-content: flex-end; gap: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.flabel { font-size: .82rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: .025em; }
+.flabel small { font-weight: 400; text-transform: none; color: #a0aec0; }
+.styled-input { width: 100%; padding: 9px 13px; border: 2px solid #edf2f7; border-radius: 8px; font-size: .93rem; box-sizing: border-box; transition: all .2s; }
+.styled-input:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,.15); }
+.input-disabled { background: #f7fafc; color: #718096; cursor: not-allowed; }
+.btn-cancel { background: #edf2f7; color: #4a5568; border: 1px solid #e2e8f0; padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-save { background: #4299e1; color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-save:hover:not(:disabled) { background: #3182ce; }
+.btn-save:disabled { opacity: .6; cursor: not-allowed; }
+.modal-msg { padding: 9px 13px; border-radius: 8px; font-size: .87rem; font-weight: 600; margin-top: 10px; }
+.modal-msg.success { background: #f0fff4; color: #2f855a; border: 1px solid #9ae6b4; }
+.modal-msg.error { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
 </style>

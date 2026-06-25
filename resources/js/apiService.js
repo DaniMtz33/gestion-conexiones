@@ -203,11 +203,53 @@ async getConfigReportes() {
     const d = response.data;
     return Array.isArray(d) ? d : (Array.isArray(d?.['Config.reportes']) ? d['Config.reportes'] : []);
 },
+async getConfigReporteById(id) {
+    const response = await apiClient.get(`/Config.reportes/${id}`);
+    return response.data;
+},
+async updateConfigReporte(id, data) {
+    const response = await apiClient.put(`/Config.reportes/${id}`, data);
+    return response.data;
+},
 
 async getServiciosRegistrados() {
     const response = await apiClient.get('/Servicios.registrados');
     const d = response.data;
     return Array.isArray(d) ? d : (Array.isArray(d?.['Servicios.registrados']) ? d['Servicios.registrados'] : []);
+},
+async getServicioRegistradoById(id) {
+    const response = await apiClient.get(`/Servicios.registrados/${id}`);
+    return response.data;
+},
+async getLogPusers() {
+    const response = await apiClient.get('/Log.pusers');
+    const d = response.data;
+    return Array.isArray(d) ? d : (Array.isArray(d?.['Log.pusers']) ? d['Log.pusers'] : []);
+},
+async configRepo(opcion, data) {
+    const payload = {
+        'NOMBRE':        data.nombre,
+        'FRECUENCIA':    data.frecuencia    || '',
+        'FORMATO':       data.formato       || '',
+        'DESTINATARIOS': data.destinatarios || '',
+        'SERVICIOS':     data.servicios     || '',
+        'ACTIVO':        data.activo        || '1'
+    };
+    const fn = opcion === 'POST'
+        ? apiClient.post('/subroutine/CONFIG.REPO', payload)
+        : apiClient.put('/subroutine/CONFIG.REPO', payload);
+    const response = await fn;
+    return response.data;
+},
+async createServicioRegistrado(data) {
+    const response = await apiClient.post('/Servicios.registrados', data);
+    return response.data;
+},
+async updateServicioRegistrado(id, data, u2version) {
+    const response = await apiClient.put(`/Servicios.registrados/${id}`, data, {
+        headers: { 'If-Match': u2version }
+    });
+    return response.data;
 },
 
 async login(user, pass) {

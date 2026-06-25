@@ -5,7 +5,6 @@ import Login from '../components/Login.vue';
 import Dashboard from '../components/Dashboard.vue';
 import UserList from '../components/UserList.vue';
 import ConnectionHistory from '../components/ConnectionHistory.vue';
-import Administration from '../components/Administration.vue';
 import Security from '../components/Security.vue';
 import ReportConfig from '../components/ReportConfig.vue';
 import RegisteredServices from '../components/RegisteredServices.vue';
@@ -33,12 +32,6 @@ const routes = [
     path: '/historial', 
     name: 'ConnectionHistory',
     component: ConnectionHistory,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/administracion',
-    name: 'Administration',
-    component: Administration,
     meta: { requiresAuth: true }
   },
   {
