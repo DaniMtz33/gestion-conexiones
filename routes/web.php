@@ -10,7 +10,7 @@ Route::get('/', function () {
 
 // --- RUTA DE PROXY ---
 Route::any('/api/{any}', function ($any) {
-    $apiBaseUrl = 'http://192.168.100.6:7171';
+    $apiBaseUrl = env('API_BASE_URL', 'http://192.168.100.7:7171');
     $request    = request();
     $apiUrl     = rtrim($apiBaseUrl, '/') . '/' . $any;
 
@@ -59,3 +59,4 @@ Route::any('/api/{any}', function ($any) {
 Route::get('/{any}', function () {
     return view('welcome');
 })->where('any', '.*');
+
