@@ -115,6 +115,7 @@ export default {
     };
   },
   mounted() { this.loadReportes(); },
+  beforeUnmount() { clearTimeout(this._closeTimer); },
   methods: {
     async loadReportes() {
       this.loading = true; this.error = '';
@@ -167,7 +168,7 @@ export default {
         this.modalMsg = this.editMode ? 'Reporte actualizado.' : 'Reporte creado.';
         this.modalMsgType = 'success';
         await this.loadReportes();
-        setTimeout(() => this.closeModal(), 1200);
+        this._closeTimer = setTimeout(() => this.closeModal(), 1200);
       } catch (e) {
         const status = e?.response?.status;
         const msg = e?.response?.data?.errorDetailMessage || e?.response?.data?.message || e?.response?.data?.error || '';

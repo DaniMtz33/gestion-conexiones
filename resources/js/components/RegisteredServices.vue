@@ -109,6 +109,7 @@ export default {
     };
   },
   mounted() { this.loadServicios(); },
+  beforeUnmount() { clearTimeout(this._closeTimer); },
   methods: {
     async loadServicios() {
       this.loading = true; this.error = '';
@@ -162,7 +163,7 @@ export default {
         this.modalMsg = this.editMode ? 'Servicio actualizado.' : 'Servicio creado.';
         this.modalMsgType = 'success';
         await this.loadServicios();
-        setTimeout(() => this.closeModal(), 1200);
+        this._closeTimer = setTimeout(() => this.closeModal(), 1200);
       } catch {
         this.modalMsg = 'Error al guardar. Verifica los datos.';
         this.modalMsgType = 'error';

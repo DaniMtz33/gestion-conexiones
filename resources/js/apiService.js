@@ -301,19 +301,17 @@ async getData(p_option, p_parameters = {}) {
             const fechaFin = getToday();
             const fechaIni = getDateMinusDays(days);
 
-            const results = await Promise.allSettled([
-                apiClient.get('/Usuarios.registrados'),
-                apiClient.post('/subroutine/OBTENER.CONEXIONES', {
+            let usersRaw = {}, historyRaw = { resultados: "" };
+            try { usersRaw = (await apiClient.get('/Usuarios.registrados')).data; } catch {}
+            try {
+                historyRaw = (await apiClient.post('/subroutine/OBTENER.CONEXIONES', {
                     "usuario": "",
-                    "fecha.ini": fechaIni, 
-                    "fecha.fin": fechaFin, 
-                    "ip": "", 
+                    "fecha.ini": fechaIni,
+                    "fecha.fin": fechaFin,
+                    "ip": "",
                     "estado": ""
-                })
-            ]);
-
-            const usersRaw = results[0].status === 'fulfilled' ? results[0].value.data : {};
-            const historyRaw = results[1].status === 'fulfilled' ? results[1].value.data : { resultados: "" };
+                })).data;
+            } catch {}
 
             const usersClean = dataMapper('GET_USERS', usersRaw);
             const historyRawString = dataMapper('GET_DASHBOARD_HISTORY', historyRaw);

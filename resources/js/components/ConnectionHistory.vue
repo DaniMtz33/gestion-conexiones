@@ -305,9 +305,11 @@ export default {
       try {
         const { start, end } = this.defaultDateRange();
         const response = await apiService.getData('GET_HISTORY', { search: '', startDate: start, endDate: end });
+        if (response.data && response.data.length > 0) {
+          this.setCachedData(response.data);
+        }
         if (!this._isMounted) return;
         this.connections = response.data;
-        this.setCachedData(response.data);
       } catch (error) {
         console.error('Error al refrescar el historial:', error);
       } finally {

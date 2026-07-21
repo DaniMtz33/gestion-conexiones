@@ -133,12 +133,11 @@ export default {
     async loadFreshData() {
       try {
         const response = await apiService.getData('GET_DASHBOARD');
-        if (!this._isMounted) return;
-        if (response && response.data && response.data.kpis) {
-          const data = response.data;
-          this.setCachedData(data);
-          this.applyData(data);
+        if (response?.data?.kpis && response.data.kpis.totalUsers > 0) {
+          this.setCachedData(response.data);
         }
+        if (!this._isMounted) return;
+        if (response?.data?.kpis) this.applyData(response.data);
       } catch (error) {
         if (this._isMounted) console.error("Error cargando dashboard:", error);
       }

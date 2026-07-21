@@ -28,14 +28,23 @@ Route::any('/api/{any}', function ($any) {
             }
         }
 
-        $response = Http::timeout(60)
-                        ->withOptions(['http_errors' => false])
-                        ->withBody($request->getContent(), 'application/json')
-                        ->withHeaders($headers)
-                        ->acceptJson()
-                        ->send($request->method(), $apiUrl, [
-                            'query' => $request->query(),
-                        ]);
+        $http = Http::timeout(60)
+                    ->withOptions(['http_errors' => false])
+                    ->withHeaders($headers)
+                    ->acceptJson();
+
+        if (in_array($request->method(), ['POST', 'PUT', 'PATCH'])) {
+            $body = $request->getContent();
+            if (empty($body)) {
+                $encoded = json_encode($request->json()->all(), JSON_UNESCAPED_SLASHES);
+                $body = ($encoded !== false) ? $encoded : '{}';
+            }
+            $http = $http->withBody($body, 'application/json');
+        }
+
+        $response = $http->send($request->method(), $apiUrl, [
+            'query' => $request->query(),
+        ]);
 
         if ($response->failed()) {
             Log::error('API Proxy Error:', [
