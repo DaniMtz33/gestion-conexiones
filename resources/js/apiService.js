@@ -119,12 +119,9 @@ function processDashboardData(users, historyRaw, daysRequested) {
         const entries = block.split('ý');
         const userEntries = entries.filter(e => e.includes('ü'));
 
-        const refDayNum = 21247;
-        const refDate = new Date(2026, 2, 3); // 3 de Marzo de 2026
-        const diffDays = parseInt(serverDayNum) - refDayNum;
-        
-        const actualDate = new Date(refDate);
-        actualDate.setDate(refDate.getDate() + diffDays);
+        // UniVerse/UniData: día 1 = 1 enero 1968
+        const actualDate = new Date(1968, 0, 1);
+        actualDate.setDate(actualDate.getDate() + (parseInt(serverDayNum) - 1));
         const dateStr = formatDatePadded(actualDate);
 
         if (!dailyStats[dateStr]) {
@@ -220,11 +217,6 @@ async getServiciosRegistrados() {
 async getServicioRegistradoById(id) {
     const response = await apiClient.get(`/Servicios.registrados/${id}`);
     return response.data;
-},
-async getLogPusers() {
-    const response = await apiClient.get('/Log.pusers');
-    const d = response.data;
-    return Array.isArray(d) ? d : (Array.isArray(d?.['Log.pusers']) ? d['Log.pusers'] : []);
 },
 async configRepo(opcion, data) {
     const payload = {

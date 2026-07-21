@@ -149,7 +149,7 @@ export default {
       const canvas1 = this.$refs.trendsChart;
       if (canvas1 && charts.trends) {
         const existing = Chart.getChart(canvas1);
-        if (existing) existing.destroy();
+        if (existing) { existing.stop(); existing.destroy(); }
 
         this.trendsChartInstance = new Chart(canvas1, {
           type: 'line',
@@ -175,7 +175,7 @@ export default {
       const canvas2 = this.$refs.ipsChart;
       if (canvas2 && charts.topIps) {
         const existing = Chart.getChart(canvas2);
-        if (existing) existing.destroy();
+        if (existing) { existing.stop(); existing.destroy(); }
 
         this.ipsChartInstance = new Chart(canvas2, {
           type: 'bar',

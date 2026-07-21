@@ -196,24 +196,29 @@ export default {
     };
   },
   mounted() {
+    this._isMounted = true;
     this.loadPusers();
+  },
+  beforeUnmount() {
+    this._isMounted = false;
+    clearTimeout(this._closeTimer);
   },
   methods: {
     async loadPusers() {
-      this.loadingPusers = true;
-      this.pusersError = '';
       try {
         const data = await apiService.getPusers();
+        if (!this._isMounted) return;
         const sorted = [...data].sort((a, b) => {
           const da = a.last_login || '';
           const db = b.last_login || '';
           return db.localeCompare(da);
         });
         this.pusers = sorted.slice(0, 10);
+        this.pusersError = '';
       } catch {
-        this.pusersError = 'No se pudo cargar la lista de usuarios.';
+        if (this._isMounted) this.pusersError = 'No se pudo cargar la lista de usuarios.';
       } finally {
-        this.loadingPusers = false;
+        if (this._isMounted) this.loadingPusers = false;
       }
     },
 
@@ -297,7 +302,7 @@ export default {
           localStorage.setItem('security_modlog', JSON.stringify(this.modLog));
         }
         await this.loadPusers();
-        setTimeout(() => this.closeModal(), 1500);
+        this._closeTimer = setTimeout(() => this.closeModal(), 1500);
       } catch {
         this.saveMessage = this.editMode
           ? 'Error al actualizar el usuario. Verifica los datos e intenta de nuevo.'

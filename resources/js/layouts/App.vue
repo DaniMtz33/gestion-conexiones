@@ -87,16 +87,14 @@ export default {
       clearTimeout(this.inactivityTimer);
       this.startInactivityTimer();
     },
-    async logout() {
+    logout() {
+      if (this._loggingOut) return;
+      this._loggingOut = true;
       clearTimeout(this.inactivityTimer);
       const user = sessionStorage.getItem('app_user') || '';
-      try {
-        await apiService.logout(user);
-      } catch {
-        // continuar con el logout aunque falle el endpoint
-      }
       sessionStorage.clear();
       this.$router.push('/login');
+      apiService.logout(user).catch(() => {});
     }
   }
 }
