@@ -155,6 +155,9 @@
 import Modal from './Modal.vue';
 import apiService from '../apiService.js';
 
+const CACHE_KEY = 'users_cache';
+const REFRESH_MS = 5 * 60 * 1000;
+
 export default {
   name: 'UserList',
   components: { Modal },
@@ -211,18 +214,43 @@ export default {
     filteredUsers() { this.currentPage = 1; }
   },
   mounted() {
+    this._isMounted = true;
+    const cached = this.getCachedData();
+    if (cached) {
+      this.users = cached;
+    } else {
+      this.loading = true;
+    }
     this.fetchUsers();
+    this._refreshInterval = setInterval(() => this.fetchUsers(), REFRESH_MS);
+  },
+  beforeUnmount() {
+    this._isMounted = false;
+    clearInterval(this._refreshInterval);
   },
   methods: {
+    getCachedData() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw).data ?? null;
+      } catch { return null; }
+    },
+    setCachedData(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch { /* quota exceeded */ }
+    },
     async fetchUsers() {
-      this.loading = true;
       try {
         const response = await apiService.getData('GET_USERS');
+        if (response?.data?.length > 0) this.setCachedData(response.data);
+        if (!this._isMounted) return;
         this.users = response.data;
       } catch (error) {
         console.error('Error al obtener los usuarios:', error);
       } finally {
-        this.loading = false;
+        if (this._isMounted) this.loading = false;
       }
     },
     sortColumn(key) {
@@ -278,8 +306,9 @@ export default {
         alert(`Cambios aplicados correctamente para ${this.editingUser.username}`);
         this.isModalVisible = false;
         const response = await apiService.getData('GET_USERS');
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+        if (response?.data?.length > 0) {
           this.users = [...response.data];
+          this.setCachedData(response.data);
         }
       } catch (error) {
         console.error("Error al guardar:", error);

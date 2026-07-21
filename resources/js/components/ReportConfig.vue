@@ -104,6 +104,9 @@
 <script>
 import apiService from '../apiService.js';
 
+const CACHE_KEY = 'reportes_cache';
+const REFRESH_MS = 5 * 60 * 1000;
+
 export default {
   name: 'ReportConfig',
   data() {
@@ -114,14 +117,43 @@ export default {
       form: { _id: '', frecuencia: '', formato: '', destinatarios: '', servicios_asociados: '', activo: '1' }
     };
   },
-  mounted() { this.loadReportes(); },
-  beforeUnmount() { clearTimeout(this._closeTimer); },
+  mounted() {
+    this._isMounted = true;
+    const cached = this.getCachedData();
+    if (cached) { this.reportes = cached; } else { this.loading = true; }
+    this.loadReportes();
+    this._refreshInterval = setInterval(() => this.loadReportes(), REFRESH_MS);
+  },
+  beforeUnmount() {
+    this._isMounted = false;
+    clearInterval(this._refreshInterval);
+    clearTimeout(this._closeTimer);
+  },
   methods: {
+    getCachedData() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw).data ?? null;
+      } catch { return null; }
+    },
+    setCachedData(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch { /* quota exceeded */ }
+    },
     async loadReportes() {
-      this.loading = true; this.error = '';
-      try { this.reportes = await apiService.getConfigReportes(); }
-      catch { this.error = 'No se pudo cargar la configuración de reportes.'; }
-      finally { this.loading = false; }
+      try {
+        const data = await apiService.getConfigReportes();
+        if (data?.length > 0) this.setCachedData(data);
+        if (!this._isMounted) return;
+        this.reportes = data;
+        this.error = '';
+      } catch {
+        if (this._isMounted) this.error = 'No se pudo cargar la configuración de reportes.';
+      } finally {
+        if (this._isMounted) this.loading = false;
+      }
     },
     formatDestinatarios(dest) {
       if (!dest) return '—';

@@ -97,6 +97,9 @@
 <script>
 import apiService from '../apiService.js';
 
+const CACHE_KEY = 'servicios_cache';
+const REFRESH_MS = 5 * 60 * 1000;
+
 export default {
   name: 'RegisteredServices',
   data() {
@@ -108,14 +111,43 @@ export default {
       form: { _id: '', nombre_servicio: '', ip_autorizada: '', usuarios_autorizados: '', activo: '1' }
     };
   },
-  mounted() { this.loadServicios(); },
-  beforeUnmount() { clearTimeout(this._closeTimer); },
+  mounted() {
+    this._isMounted = true;
+    const cached = this.getCachedData();
+    if (cached) { this.servicios = cached; } else { this.loading = true; }
+    this.loadServicios();
+    this._refreshInterval = setInterval(() => this.loadServicios(), REFRESH_MS);
+  },
+  beforeUnmount() {
+    this._isMounted = false;
+    clearInterval(this._refreshInterval);
+    clearTimeout(this._closeTimer);
+  },
   methods: {
+    getCachedData() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw).data ?? null;
+      } catch { return null; }
+    },
+    setCachedData(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch { /* quota exceeded */ }
+    },
     async loadServicios() {
-      this.loading = true; this.error = '';
-      try { this.servicios = await apiService.getServiciosRegistrados(); }
-      catch { this.error = 'No se pudo cargar la lista de servicios.'; }
-      finally { this.loading = false; }
+      try {
+        const data = await apiService.getServiciosRegistrados();
+        if (data?.length > 0) this.setCachedData(data);
+        if (!this._isMounted) return;
+        this.servicios = data;
+        this.error = '';
+      } catch {
+        if (this._isMounted) this.error = 'No se pudo cargar la lista de servicios.';
+      } finally {
+        if (this._isMounted) this.loading = false;
+      }
     },
     formatUsuarios(usuarios) {
       if (!usuarios) return '—';
