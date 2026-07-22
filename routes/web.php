@@ -11,6 +11,7 @@ Route::get('/', function () {
 
 // --- RUTA DE PROXY ---
 Route::any('/api/{any}', function ($any) {
+    set_time_limit(0); // OBTENER.CONEXIONES puede tardar más de 60s (límite por defecto de PHP)
     session()->save(); // libera el lock de sesión para no bloquear requests concurrentes
     $apiBaseUrl = env('API_BASE_URL', 'http://192.168.100.7:7171');
     $request    = request();
@@ -44,7 +45,7 @@ Route::any('/api/{any}', function ($any) {
             }
         }
 
-        $http = Http::timeout(60)
+        $http = Http::timeout(120)
                     ->withOptions(['http_errors' => false])
                     ->withHeaders($headers)
                     ->acceptJson();
