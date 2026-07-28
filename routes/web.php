@@ -13,7 +13,7 @@ Route::get('/', function () {
 Route::any('/api/{any}', function ($any) {
     set_time_limit(0); // OBTENER.CONEXIONES puede tardar más de 60s (límite por defecto de PHP)
     session()->save(); // libera el lock de sesión para no bloquear requests concurrentes
-    $apiBaseUrl = env('API_BASE_URL', 'http://192.168.100.7:7171');
+    $apiBaseUrl = env('API_BASE_URL', 'http://192.168.100.11:7171');
     $request    = request();
     $apiUrl     = rtrim($apiBaseUrl, '/') . '/' . $any;
 
