@@ -13,9 +13,13 @@ Route::get('/', function () {
 Route::any('/api/{any}', function ($any) {
     set_time_limit(0); // OBTENER.CONEXIONES puede tardar más de 60s (límite por defecto de PHP)
     session()->save(); // libera el lock de sesión para no bloquear requests concurrentes
-    $apiBaseUrl = env('API_BASE_URL', 'http://192.168.100.11:7171');
-    $request    = request();
-    $apiUrl     = rtrim($apiBaseUrl, '/') . '/' . $any;
+    $apiBaseUrl = env('API_BASE_URL');
+    if (empty($apiBaseUrl)) {
+        Log::error('API Proxy Error: API_BASE_URL no está configurada en .env');
+        return response()->json(['message' => 'API_BASE_URL no está configurada'], 500);
+    }
+    $request = request();
+    $apiUrl  = rtrim($apiBaseUrl, '/') . '/' . $any;
 
     try {
         $headers = [];
